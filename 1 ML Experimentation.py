@@ -19,13 +19,28 @@ bronze_df.display()
 
 # COMMAND ----------
 
-# 1. Notebook capabilities - visualization, collaboration, versioning
-# 2. MLflow Experiments
-#     1. Model / system metrics
-#     2. Visualize metrics
-# 3. MLflow Model registry
-# 4. Deep learning (distributed ML)
-# 5. Gotchas 
-#     1. Metrics must be numbers (not arbitrary text)
-#     2. Nesting limitations
-#     3. Managing state of a run, accessing a specific run afterwards
+# MAGIC %md
+# MAGIC Single Node ML, Pandas, EDA
+# MAGIC ### 1. Notebook capabilities - visualization, collaboration, versioning
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 2. MLflow Experiments
+# MAGIC #####     2.1 Model / system metrics
+# MAGIC #####     2.2 Visualize metrics
+# MAGIC #####     2.3 Nested runs
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 3. MLflow Model registry
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 4. Deep learning, distributed ML
+
+# COMMAND ----------
+
+
