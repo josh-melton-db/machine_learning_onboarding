@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC # Introduction
 # MAGIC Welcome to an Overview of Machine Learning on Databricks! </br>
-# MAGIC First we'll install the correct libraries, run the setup, and read our data
+# MAGIC First we'll install the correct libraries, run the setup, and read our data. You can run cells via the UI or the "shift+enter" hotkey
 
 # COMMAND ----------
 
@@ -11,12 +11,9 @@ pip install -q dbldatagen git+https://github.com/TimeSynth/TimeSynth.git
 
 # COMMAND ----------
 
-# DBTITLE 1,Import Libraries
+# DBTITLE 1,Run Setup
 from utils.onboarding_setup import get_config, reset_tables, iot_generator
 
-# COMMAND ----------
-
-# DBTITLE 1,Run Setup
 config = get_config(spark)
 reset_tables(spark, config, dbutils)
 iot_data = iot_generator(spark, config['rows_per_run'])
@@ -62,7 +59,23 @@ print(pandas_bronze.isnull().sum())
 
 # MAGIC %md
 # MAGIC #Featurization
-# MAGIC From our initial exploration and visualization, we can see that the delay data has some seasonality and trend to it. Let's see if we can turn that into a more straightforward signal for prediction. Create a visualization in the resulting table that shows the rolling mean column against the original delay column and adjust the "span" parameter to smooth out the wave the best you can
+# MAGIC First, let's change the categorical factory_id and model_id columns into one hot encodings to make then work for our model training
+
+# COMMAND ----------
+
+encoded_factory = pd.get_dummies(pandas_bronze['factory_id'], prefix='ohe')
+encoded_model = pd.get_dummies(pandas_bronze['model_id'], prefix='ohe')
+df_encoded = pd.concat([pandas_bronze.drop('factory_id', axis=1).drop('model_id', axis=1), encoded_factory, encoded_model], axis=1
+                       ).drop('timestamp', axis=1)
+df_encoded = df_encoded.fillna(method='ffill')
+df_encoded = df_encoded.fillna(0)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC From our initial exploration and visualization, we can see that the delay data has some seasonality and trend to it. Next let's see if we can turn that into a more straightforward signal for prediction. 
+# MAGIC
+# MAGIC Create a visualization in the resulting table that shows the rolling mean column against the original delay column and adjust the "span" parameter to smooth out the wave as best you can.
 
 # COMMAND ----------
 
@@ -72,7 +85,9 @@ pandas_bronze.display()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Let's do the same with temperature. By taking the rolling mean of these columns we might add some more predictive power to our model. Let's be sure to shift(1) to avoid data leakage
+# MAGIC Let's do the same with temperature! By taking the rolling mean, or exponential weighted moving average, of these columns we might add some more predictive power to our model. Maybe sharp deviations from recent temperatures impact the defect rate. 
+# MAGIC
+# MAGIC Let's be sure to shift(1) to avoid data leakage
 
 # COMMAND ----------
 
@@ -88,7 +103,7 @@ spark.createDataFrame(pandas_bronze).write.saveAsTable(config['silver_features']
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Looks good! We've now explored our data, shared insights with others, and used the Pandas library that many data scientists are familiar with to create features on our data. Now let's see how Databricks can help us with model experimentation and management
+# MAGIC Looks good! We've now explored our data, shared insights with others, and used the Pandas library that many data scientists are familiar with to create features on our data. Next let's see how Databricks can help us with model experimentation and management
 
 # COMMAND ----------
 
