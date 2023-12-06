@@ -138,7 +138,9 @@ with mlflow.start_run(run_name='Second Run Tree') as run:
 from sklearn.linear_model import LogisticRegression
 
 model_name = f"lr_{config['model_name']}"
-mlflow.sklearn.autolog() # Autolog adds the important information to the run for us
+mlflow.sklearn.autolog() # Autolog create the run and adds the important information for us
+# lr = LogisticRegression()
+# lr.fit(X_train, y_train) # TODO reorganize to make this outside the context manager
 
 with mlflow.start_run(run_name='Third Run LR') as run:
     # Create model, train it, and create predictions. Defer logging to autolog() apart from our f1 metric for comparison
