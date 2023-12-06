@@ -16,7 +16,7 @@ def get_config(spark):
       'csv_staging' : f'/{current_user}_onboarding/csv_staging',
       'checkpoint_location' : f'/{current_user}_onboarding/sensor_checkpoints',
       'rows_per_run' : num_rows,
-      'model_name' : 'iot_streaming_model'
+      'model_name' : f'device_defect_{current_user}'
   }
 
 def reset_tables(spark, config, dbutils):

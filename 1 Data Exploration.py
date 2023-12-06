@@ -65,10 +65,8 @@ print(pandas_bronze.isnull().sum())
 
 encoded_factory = pd.get_dummies(pandas_bronze['factory_id'], prefix='ohe')
 encoded_model = pd.get_dummies(pandas_bronze['model_id'], prefix='ohe')
-df_encoded = pd.concat([pandas_bronze.drop('factory_id', axis=1).drop('model_id', axis=1), encoded_factory, encoded_model], axis=1
-                       ).drop('timestamp', axis=1)
-df_encoded = df_encoded.fillna(method='ffill')
-df_encoded = df_encoded.fillna(0)
+features = pd.concat([pandas_bronze.drop('factory_id', axis=1).drop('model_id', axis=1), encoded_factory, encoded_model], axis=1)
+features = features.drop('timestamp', axis=1)
 
 # COMMAND ----------
 
@@ -79,8 +77,9 @@ df_encoded = df_encoded.fillna(0)
 
 # COMMAND ----------
 
-pandas_bronze['rolling_mean_delay'] = pandas_bronze['delay'].shift(1).ewm(span=12).mean()
-pandas_bronze.display()
+features = features.sort_values(by='trip_id')
+features['rolling_mean_delay'] = features['delay'].shift(1).ewm(span=12).mean()
+features.display()
 
 # COMMAND ----------
 
@@ -91,14 +90,24 @@ pandas_bronze.display()
 
 # COMMAND ----------
 
-pandas_bronze['rolling_mean_temp'] = pandas_bronze['temperature'].shift(1).ewm(5).mean()
-pandas_bronze['temp_difference'] = pandas_bronze['rolling_mean_temp'] - pandas_bronze['temperature']
-pandas_bronze.display()
+features['rolling_mean_temp'] = features['temperature'].shift(1).ewm(5).mean()
+features['temp_difference'] = features['rolling_mean_temp'] - features['temperature']
+features.display()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Finally, we'll forward fill null values or replace with zeros where necessary before writing the results to our feature table
+
+# COMMAND ----------
+
+features = features.fillna(method='ffill')
+features = features.fillna(0)
 
 # COMMAND ----------
 
 # DBTITLE 1,Save Features to Table
-spark.createDataFrame(pandas_bronze).write.saveAsTable(config['silver_features'])
+spark.createDataFrame(features).write.mode('overwrite').saveAsTable(config['silver_features'])
 
 # COMMAND ----------
 
