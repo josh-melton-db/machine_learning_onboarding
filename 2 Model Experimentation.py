@@ -68,7 +68,7 @@ with mlflow.start_run(run_name='First Run RF') as run:
 
     # Log metrics
     f1 = f1_score(y_test, predictions)
-    mlflow.log_metric('f1', f1) #TODO: make the results less stupid
+    mlflow.log_metric('f1', f1) # TODO: make the results less stupid
 
     # Log feature importances plot
     importance = (pd.DataFrame(list(zip(X_train.columns, rf.feature_importances_)), columns=["Feature", "Importance"])
