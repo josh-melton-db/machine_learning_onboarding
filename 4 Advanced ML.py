@@ -1,11 +1,13 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC ### 4. Deep learning, distributed ML
+# MAGIC ### 4. Advanced ML
 # MAGIC 4.1 Custom MLflow models
 # MAGIC
 # MAGIC 4.2 Nested runs
 # MAGIC
 # MAGIC 4.3 Hyperparameter tuning
+# MAGIC
+# MAGIC 4.4 Pandas UDFs
 
 # COMMAND ----------
 
@@ -17,6 +19,7 @@ example_df = pd.DataFrame({'input': [15]})
 class Add5(mlflow.pyfunc.PythonModel):
     def predict(self, context, model_input):
         return 5 + model_input['input']
+        # Integrate ARIMA
 
 add5_model = Add5()
 
@@ -72,3 +75,24 @@ with mlflow.start_run(run_name="Hyperopt"):
                   algo=tpe.suggest,
                   max_evals=16,
                   trials=spark_trials)
+
+# COMMAND ----------
+
+spark_example.display()
+
+# COMMAND ----------
+
+# Load the trained Pyfunc model
+custom_model = mlflow.pyfunc.spark_udf(spark, f'runs:/{run.info.run_id}/model')
+
+# Use the custom model to add a prediction column
+spark_example = spark.createDataFrame(example_df)
+
+# COMMAND ----------
+
+features = spark_example.columns
+spark_example.withColumn('prediction', custom_model(*features)).display()
+
+# COMMAND ----------
+
+

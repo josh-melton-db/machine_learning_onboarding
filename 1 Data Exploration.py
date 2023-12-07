@@ -2,6 +2,8 @@
 # MAGIC %md
 # MAGIC # Introduction
 # MAGIC Welcome to an Overview of Machine Learning on Databricks! </br>
+# MAGIC Please be sure to use an <a href="https://docs.databricks.com/en/machine-learning/index.html#create-a-cluster-using-databricks-runtime-ml">ML Runtime Cluster</a> with a recent Databricks Runtime
+# MAGIC
 # MAGIC First we'll install the correct libraries, run the setup, and read our data. You can run cells via the UI or the "shift+enter" hotkey
 
 # COMMAND ----------
