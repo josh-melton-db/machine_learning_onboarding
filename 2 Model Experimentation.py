@@ -22,7 +22,7 @@ config = get_config(spark)
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Now that we've explored our data and added some features in the previous notebook, let's train some models to predict defects! First, we'll split the 
+# MAGIC Now that we've explored our data and added some features in the previous notebook, let's train some models to predict defects! First, we'll split the data into train/test
 
 # COMMAND ----------
 
@@ -68,7 +68,7 @@ with mlflow.start_run(run_name='First Run RF') as run:
 
     # Log metrics
     f1 = f1_score(y_test, predictions)
-    mlflow.log_metric('f1', f1) # TODO: make the results less stupid
+    mlflow.log_metric('f1', f1) # TODO: make the results less bad
 
     # Log feature importances plot
     importance = (pd.DataFrame(list(zip(X_train.columns, rf.feature_importances_)), columns=["Feature", "Importance"])
