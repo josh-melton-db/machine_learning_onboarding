@@ -1,6 +1,7 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC #Model Experimentation
+# MAGIC This repository is incomplete and for outline purposes only
 
 # COMMAND ----------
 
@@ -42,7 +43,7 @@ X_train.head()
 
 # MAGIC %md
 # MAGIC # MLflow Experiments
-# MAGIC Next we'll try a few different approaches to predicting defects. In order to track the results we'll use MLflow _Experiments_. Experiments allow you to track and compare many attempts to solve a problem. Each attempt is called a _run_
+# MAGIC Next we'll try a few different approaches to predicting defects. In order to track the results we'll use MLflow _Experiments_. An Experiment allows you to track and compare many attempts to solve a problem. Each attempt is called a _run_
 
 # COMMAND ----------
 
@@ -87,6 +88,8 @@ with mlflow.start_run(run_name='First Run RF') as run:
 
 # COMMAND ----------
 
+from sklearn.utils import resample
+
 features_majority = train[train['defect']!=1]
 features_minority = train[train['defect']==1]
 features_upsample = resample(features_minority, replace=True, n_samples=len(features_majority))
@@ -98,7 +101,6 @@ y_train_upsampled = train_upsampled['defect']
 # COMMAND ----------
 
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.utils import resample
 
 
 model_name = f"tree_{config['model_name']}"

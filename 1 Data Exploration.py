@@ -1,6 +1,8 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # Introduction
+# MAGIC This repository is incomplete and for outline purposes only
+# MAGIC
 # MAGIC Welcome to an Overview of Machine Learning on Databricks! </br>
 # MAGIC Please be sure to use an <a href="https://docs.databricks.com/en/machine-learning/index.html#create-a-cluster-using-databricks-runtime-ml">ML Runtime Cluster</a> with a recent Databricks Runtime
 # MAGIC
@@ -40,7 +42,7 @@ bronze_df.display()
 
 # MAGIC %md
 # MAGIC #Pandas on Databricks
-# MAGIC You can convert the spark dataframe to a pandas dataframe quite easily by using the toPandas() function. Pandas is a single node processing library so we'll start with analysis of one device to reduce the data volume, before discussing how to apply pandas in parallel
+# MAGIC You can convert the spark dataframe to a pandas dataframe quite easily by using the toPandas() function. Pandas is a single node processing library so we'll start with analysis of one device to reduce the data volume before discussing how to apply pandas in parallel
 
 # COMMAND ----------
 

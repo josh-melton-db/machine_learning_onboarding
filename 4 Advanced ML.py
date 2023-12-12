@@ -1,13 +1,49 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC ### 4. Advanced ML
-# MAGIC 4.1 Custom MLflow models
+# MAGIC # Advanced ML
+# MAGIC This repository is incomplete and for outline purposes only
+
+# COMMAND ----------
+
+pip install -q dbldatagen git+https://github.com/TimeSynth/TimeSynth.git
+
+# COMMAND ----------
+
+from utils.onboarding_setup import get_config, reset_tables, iot_generator
+config = get_config(spark)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #Pandas UDFs
+# MAGIC So far we've used pandas to run some single-node transformations on our data. If our data volume grows, we may want to run processes in parallel instead. Databricks offers three integrations with Spark to do this:
+# MAGIC - Pyspark Pandas
+# MAGIC - Pandas UDFs
+# MAGIC - Apply In Pandas
 # MAGIC
-# MAGIC 4.2 Nested runs
-# MAGIC
-# MAGIC 4.3 Hyperparameter tuning
-# MAGIC
-# MAGIC 4.4 Pandas UDFs
+# MAGIC Let's test the applyInPandas approach to run pandas in parallel
+
+# COMMAND ----------
+
+import pyspark.pandas as ps
+
+features = spark.read.table(config['silver_features']).pandas_api()
+ewma = features['temperature'].shift(1).ewm(5).mean()
+ewma
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # Custom MLflow Models
+# MAGIC Sometimes an out of the box model from one of the libraries MLflow integrates won't do, and you want to do something custom. Adding last-second transformations to inputs or outputs of a model, or combining the results of two different models as a single model might stop you from using a standard MLflow compatible library. Luckily, there's a way to create custom models in MLflow using the PythonModel superclass and a predict() function like below:
+# MAGIC </br></br>
+# MAGIC ```
+# MAGIC class Add5(mlflow.pyfunc.PythonModel):
+# MAGIC     def predict(self, context, model_input):
+# MAGIC         return 5 + model_input['feature_col']
+# MAGIC ```
+# MAGIC </br>
+# MAGIC Let's use a custom MLflow model to combine some different approaches to solving our prediction problem
 
 # COMMAND ----------
 
@@ -31,6 +67,12 @@ custom_model.predict(example_df)
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC # Nested MLflow models
+# MAGIC Other times we want our experimentation to be nested. As an example, we may want to create a different ML model for each model of engine to account for their different responses to our features. Let's try logging multiple runs within a parent run
+
+# COMMAND ----------
+
 with mlflow.start_run(run_name="Nested Example") as run:
     # Create nested run with nested=True argument
     with mlflow.start_run(run_name="Child 1", nested=True):
@@ -38,6 +80,12 @@ with mlflow.start_run(run_name="Nested Example") as run:
 
     with mlflow.start_run(run_name="Child 2", nested=True):
         mlflow.log_param("run_name", "child_2")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # Hyperparameter tuning
+# MAGIC Now that we've done our experimentation and tracked the building of so many models, we may have an idea of the best type of model but want to ensure our hyperparameter selection for that type of model is optimal. We can do that with hyperopt, a framework where we can minimize the output of some function given a parameter space to explore as input
 
 # COMMAND ----------
 
@@ -58,8 +106,6 @@ def objective(params):
 
 # COMMAND ----------
 
-from hyperopt import SparkTrials
-
 # Define search space
 search_space = {"n_estimators": hp.quniform("n_estimators", 100, 500, 5),
                 "max_depth": hp.quniform("max_depth", 5, 20, 1),
@@ -75,23 +121,6 @@ with mlflow.start_run(run_name="Hyperopt"):
                   algo=tpe.suggest,
                   max_evals=16,
                   trials=spark_trials)
-
-# COMMAND ----------
-
-spark_example.display()
-
-# COMMAND ----------
-
-# Load the trained Pyfunc model
-custom_model = mlflow.pyfunc.spark_udf(spark, f'runs:/{run.info.run_id}/model')
-
-# Use the custom model to add a prediction column
-spark_example = spark.createDataFrame(example_df)
-
-# COMMAND ----------
-
-features = spark_example.columns
-spark_example.withColumn('prediction', custom_model(*features)).display()
 
 # COMMAND ----------
 
