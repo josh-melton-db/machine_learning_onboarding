@@ -21,7 +21,7 @@ config = get_config(spark)
 # MAGIC - Pandas UDFs
 # MAGIC - Apply In Pandas
 # MAGIC
-# MAGIC Let's test the applyInPandas approach to run pandas in parallel
+# MAGIC Let's test the pyspark pandas approach to run pandas transformations in parallel
 
 # COMMAND ----------
 
@@ -35,12 +35,15 @@ ewma
 
 # MAGIC %md
 # MAGIC # Custom MLflow Models
-# MAGIC Sometimes an out of the box model from one of the libraries MLflow integrates won't do, and you want to do something custom. Adding last-second transformations to inputs or outputs of a model, or combining the results of two different models as a single model might stop you from using a standard MLflow compatible library. Luckily, there's a way to create custom models in MLflow using the PythonModel superclass and a predict() function like below:
+# MAGIC Sometimes an out of the box model from one of the libraries MLflow integrates won't get the job done, so you need to do something custom. Adding last-second transformations to inputs or outputs of a model, or combining the results of two different models as a single model might stop you from using a standard MLflow compatible library. Luckily, there's a way to create custom models in MLflow using the PythonModel superclass and a predict() function like below:
 # MAGIC </br></br>
 # MAGIC ```
 # MAGIC class Add5(mlflow.pyfunc.PythonModel):
 # MAGIC     def predict(self, context, model_input):
-# MAGIC         return 5 + model_input['feature_col']
+# MAGIC         return 5 + model_input['feature_col'] 
+# MAGIC
+# MAGIC with mlflow.start_run() as run:
+# MAGIC     mlflow.pyfunc.log_model('model', python_model=Add5(), input_example=example_df)
 # MAGIC ```
 # MAGIC </br>
 # MAGIC Let's use a custom MLflow model to combine some different approaches to solving our prediction problem

@@ -11,7 +11,7 @@
 # COMMAND ----------
 
 # DBTITLE 1,Install Libraries
-pip install -q dbldatagen git+https://github.com/TimeSynth/TimeSynth.git
+pip install -q dbldatagen
 
 # COMMAND ----------
 
@@ -20,23 +20,8 @@ from utils.onboarding_setup import get_config, reset_tables, iot_generator
 
 config = get_config(spark)
 reset_tables(spark, config, dbutils)
-iot_data = iot_generator(spark, config['rows_per_run'])
+iot_data = iot_generator(spark)
 iot_data.write.mode('overwrite').saveAsTable(config['bronze_table'])
-
-# COMMAND ----------
-
-# DBTITLE 1,Read Data
-bronze_df = spark.read.table(config['bronze_table'])
-bronze_df.display()
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC #Notebook Visualizations
-# MAGIC - Once you've run the read and display commands, try clicking the "+" button to the left of "Table" and explore chart creation. Try creating a Data Profile. 
-# MAGIC - Next, create a new visualization and choose a Scatter plot with timestamp as the X axis and delay, temperature, or density as the Y axis. Group by device_id. Use the UI to identify interesting patterns
-# MAGIC - Finally, add "defect" to the X axis and count* to the Y axis to see how many defects we're working with
-# MAGIC - If a visualization is worth sharing, try the down arrow next to the title to "add to dashboard". Notebook dashboards can be used to collect and share the various visualiztions you create in your notebooks
 
 # COMMAND ----------
 
@@ -46,9 +31,9 @@ bronze_df.display()
 
 # COMMAND ----------
 
-# DBTITLE 1,Convert to Pandas
+# DBTITLE 1,Read Subset and Convert to Pandas
 import pandas as pd
-pandas_bronze = bronze_df.where('device_id=1').toPandas()
+pandas_bronze = spark.read.table(config['bronze_table']).where('device_id=1').toPandas()
 
 # COMMAND ----------
 
@@ -58,6 +43,20 @@ print(pandas_bronze.columns)
 print(pandas_bronze.shape)
 print(pandas_bronze.dtypes)
 print(pandas_bronze.isnull().sum())
+
+# COMMAND ----------
+
+# DBTITLE 1,Display and Visualize
+display(pandas_bronze)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #Notebook Visualizations
+# MAGIC - Once you've run the display command in the cell above, try clicking the "+" button to the left of "Table" and explore chart creation. Try creating a Data Profile. 
+# MAGIC - Next, create a new visualization and choose a Scatter plot with timestamp as the X axis and delay, temperature, or density as the Y axis. Group by trip_id. Use the UI to identify interesting patterns
+# MAGIC - Finally, add "defect" to the X axis and count* to the Y axis to see how many defects we're working with
+# MAGIC - If a visualization is worth sharing, try the down arrow next to the title to "add to dashboard". Notebook dashboards can be used to collect and share the various visualiztions you create in your notebooks
 
 # COMMAND ----------
 
