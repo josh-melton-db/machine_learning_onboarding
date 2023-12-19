@@ -5,7 +5,7 @@
 
 # COMMAND ----------
 
-pip install -q dbldatagen git+https://github.com/TimeSynth/TimeSynth.git
+pip install -q dbldatagen
 
 # COMMAND ----------
 

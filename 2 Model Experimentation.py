@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC #Model Experimentation
+# MAGIC # Introduction
 
 # COMMAND ----------
 
@@ -12,12 +12,6 @@ pip install -q dbldatagen
 # DBTITLE 1,Run Setup
 from utils.onboarding_setup import get_config, reset_tables, iot_generator
 config = get_config(spark)
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC #####     2.1 Model / system metrics
-# MAGIC #####     2.2 Visualize metrics
 
 # COMMAND ----------
 
@@ -107,6 +101,7 @@ print(counter1, counter2)
 
 # COMMAND ----------
 
+# DBTITLE 1,Second Run
 with mlflow.start_run(run_name='Second Run RF') as run:
     # Create model, train it, and create predictions
     rf = RandomForestClassifier(n_estimators=100, random_state=42)
@@ -142,6 +137,7 @@ with mlflow.start_run(run_name='Second Run RF') as run:
 
 # COMMAND ----------
 
+# DBTITLE 1,Third Run
 from sklearn.linear_model import LogisticRegression
 
 model_name = f"lr_{config['model_name']}"
@@ -155,10 +151,12 @@ predictions = lr.predict(X_test)
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC # Model Registry
 # MAGIC Now that we've had a chance to compare three models, let's determine the best one and add it to the model registry for downstream use
 
 # COMMAND ----------
 
+# DBTITLE 1,Find Best Model
 from mlflow.tracking import MlflowClient
 client = MlflowClient()
 
@@ -167,6 +165,7 @@ lowest_f1_run_id = runs[0].info.run_id
 
 # COMMAND ----------
 
+# DBTITLE 1,Register Model
 model_uri = f"runs:/{lowest_f1_run_id}/model"
 model_details = mlflow.register_model(model_uri=model_uri, name=config['model_name'])
 
@@ -177,6 +176,7 @@ model_details = mlflow.register_model(model_uri=model_uri, name=config['model_na
 
 # COMMAND ----------
 
+# DBTITLE 1,Transition to Production
 client.transition_model_version_stage(
     name=config['model_name'],
     version=model_details.version,

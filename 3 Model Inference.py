@@ -1,15 +1,22 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # MLflow Model Inference
+# MAGIC # Introduction
 
 # COMMAND ----------
 
+# DBTITLE 1,Install Libraries
 pip install -q dbldatagen
 
 # COMMAND ----------
 
-from utils.onboarding_setup import get_config, reset_tables, iot_generator
+# DBTITLE 1,Import Config
+from utils.onboarding_setup import get_config
 config = get_config(spark)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # MLflow Batch Inference
 
 # COMMAND ----------
 
@@ -25,11 +32,16 @@ feature_data
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC # MLflow Streaming Inference
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC How do we make predictions on real time streams of data? Same as before, but on a streaming dataframe. We'll put our logic in a function this time. The foreachBatch calls the function on each microbatch in our streaming dataframe
 
 # COMMAND ----------
 
-# DBTITLE 1,Streaming Inference
+# DBTITLE 1,Define Function
 
 feature_data_stream = spark.readStream.table(config['silver_features'])
 
@@ -40,6 +52,7 @@ def make_predictions(microbatch_df, batch_id):
 
 # COMMAND ----------
 
+# DBTITLE 1,Run Streaming Inference
 dbutils.fs.rm(config['checkpoint_location'], True) # source data was overwritten during setup so we remove any existing checkpoints
 (
   feature_data_stream.writeStream
@@ -50,10 +63,6 @@ dbutils.fs.rm(config['checkpoint_location'], True) # source data was overwritten
   # .queryName("example_query") # use this for discoverability in the Spark UI
   .start()
 ).awaitTermination()
-
-# COMMAND ----------
-
-
 
 # COMMAND ----------
 
