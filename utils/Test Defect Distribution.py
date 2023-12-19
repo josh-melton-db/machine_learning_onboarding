@@ -1,9 +1,6 @@
 # Databricks notebook source
-pip install -q dbldatagen
-
-# COMMAND ----------
-
-dbutils.library.restartPython()
+# MAGIC %pip install -q dbldatagen
+# MAGIC dbutils.library.restartPython()
 
 # COMMAND ----------
 

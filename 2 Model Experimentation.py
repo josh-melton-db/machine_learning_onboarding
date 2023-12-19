@@ -1,12 +1,12 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC #Model Experimentation
-# MAGIC This repository is incomplete and for outline purposes only
+# MAGIC This notebook is incomplete and for outline purposes only
 
 # COMMAND ----------
 
 # DBTITLE 1,Install Libraries
-pip install -q dbldatagen git+https://github.com/TimeSynth/TimeSynth.git
+pip install -q dbldatagen
 
 # COMMAND ----------
 
@@ -27,8 +27,8 @@ config = get_config(spark)
 
 # COMMAND ----------
 
+# DBTITLE 1,Create Datasets
 features = spark.read.table(config['silver_features']).toPandas()
-features = features.sort_values(by='trip_id')
 
 train = features.iloc[:int(len(features) * 0.8)]
 test = features.iloc[int(len(features) * 0.8):]
@@ -47,10 +47,11 @@ X_train.head()
 
 # COMMAND ----------
 
+# DBTITLE 1,Run MLflow Experiment
 import pandas as pd
 import mlflow.sklearn
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, recall_score
 from mlflow.models.signature import infer_signature
 import uuid
 import matplotlib.pyplot as plt
@@ -64,76 +65,89 @@ with mlflow.start_run(run_name='First Run RF') as run:
     predictions = rf.predict(X_test)
 
     # Log model with signature
-    signature = infer_signature(X_train, predictions)
+    signature = infer_signature(X_test, predictions)
     mlflow.sklearn.log_model(rf, model_name, signature=signature)
 
     # Log metrics
     f1 = f1_score(y_test, predictions)
-    mlflow.log_metric('f1', f1) # TODO: make the results less bad
+    recall = recall_score(y_test, predictions)
+    mlflow.log_metric('test_f1', f1)
+    mlflow.log_metric('test_recall', recall)
+    mlflow.log_metric('defects_predicted', predictions.sum())
 
     # Log feature importances plot
-    importance = (pd.DataFrame(list(zip(X_train.columns, rf.feature_importances_)), columns=["Feature", "Importance"])
+    importance = (pd.DataFrame(list(zip(X_train.columns, rf.feature_importances_)), 
+                               columns=["Feature", "Importance"])
                   .sort_values("Importance", ascending=False))
     fig, ax = plt.subplots()
     importance.plot.bar(x='Feature', ax=ax)
     plt.title("Feature Importances")
-    plt.savefig("feature_importances.png")  # Save the figure to a file
-    plt.close(fig)
     mlflow.log_figure(fig, "feature_importances.png")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC You can view the experiment by selecting the beaker icon on the right side of the screen, or choosing "Experiments" from the left menu and selecting your experiment that matches the name of this notebook. Try clicking around to see where the model information resides, how to make charts of the information logged, and where the artifacts such as the feature importance chart can be accessed. Looking at the metrics that were logged it seems like the low proportion of defects may have thrown off our model. Let's upsample our training data before training the next one. Be careful to avoid data leakage when doing this!
+# MAGIC You can view the experiment by selecting the beaker icon on the right side of the screen, or choosing "Experiments" from the left menu and selecting your experiment that matches the name of this notebook. Try clicking around to see where the model information resides, how to make charts of the information logged, and where the artifacts such as the feature importance chart can be accessed. Look at the metrics that were logged and see if the low proportion of defects may have thrown off our model. Since the opportunity cost of missing a defect is very high, recall will be an important metric for us. Let's upsample our training data before the next run. Be careful to avoid data leakage when doing this! We'll try Synthetic Minority Oversampling (SMOTE)
 
 # COMMAND ----------
 
-from sklearn.utils import resample
+# DBTITLE 1,Upsample Data
+from imblearn.over_sampling import SMOTE
+from collections import Counter
 
-features_majority = train[train['defect']!=1]
-features_minority = train[train['defect']==1]
-features_upsample = resample(features_minority, replace=True, n_samples=len(features_majority))
-
-train_upsampled = pd.concat([features_majority, features_upsample])
-X_train_upsampled = train_upsampled.drop('defect', axis=1)
-y_train_upsampled = train_upsampled['defect']
+counter1 = Counter(y_train)
+oversample = SMOTE()
+X_train_oversampled, y_train_oversampled = oversample.fit_resample(X_train, y_train)
+counter2 = Counter(y_train_oversampled)
+print(counter1, counter2)
 
 # COMMAND ----------
 
-from sklearn.tree import DecisionTreeClassifier
+# MAGIC %md
+# MAGIC As a part of our experiment, let's try another run with the exact same code but swap in our upsampled training data
 
+# COMMAND ----------
 
-model_name = f"tree_{config['model_name']}"
+import pandas as pd
+import mlflow.sklearn
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import f1_score, recall_score
+from mlflow.models.signature import infer_signature
+import uuid
+import matplotlib.pyplot as plt
 
-with mlflow.start_run(run_name='Second Run Tree') as run:
+with mlflow.start_run(run_name='Second Run RF') as run:
     # Create model, train it, and create predictions
-    tree = DecisionTreeClassifier()
-    tree.fit(X_train_upsampled, y_train_upsampled)
-    predictions = tree.predict(X_test)
+    rf = RandomForestClassifier(n_estimators=100, random_state=42)
+    rf.fit(X_train_oversampled, y_train_oversampled)
+    predictions = rf.predict(X_test)
 
     # Log model with signature
-    signature = infer_signature(X_train, predictions)
-    mlflow.sklearn.log_model(tree, model_name, signature=signature)
-    mlflow.log_param('upsampled', 'true')
+    signature = infer_signature(X_test, predictions)
+    mlflow.sklearn.log_model(rf, model_name, signature=signature)
 
     # Log metrics
     f1 = f1_score(y_test, predictions)
-    mlflow.log_metric('f1', f1)
+    recall = recall_score(y_test, predictions)
+    mlflow.log_metric('test_f1', f1)
+    mlflow.log_metric('test_recall', recall)
+    mlflow.log_metric('defects_predicted', predictions.sum())
 
     # Log feature importances plot
-    importance = (pd.DataFrame(list(zip(X_train.columns, tree.feature_importances_)), columns=["Feature", "Importance"])
+    importance = (pd.DataFrame(list(zip(X_train.columns, rf.feature_importances_)), 
+                               columns=["Feature", "Importance"])
                   .sort_values("Importance", ascending=False))
     fig, ax = plt.subplots()
     importance.plot.bar(x='Feature', ax=ax)
     plt.title("Feature Importances")
-    plt.savefig("feature_importances.png")  # Save the figure to a file
-    plt.close(fig)
     mlflow.log_figure(fig, "feature_importances.png")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC To skip adding code to explicitly log your models, try MLflow's autolog() capability
+# MAGIC Our F1 score dropped, but recall improved! We may need to balance the two based on a cost-benefit analysis moving forward, but luckily we're tracking all of our runs and can select the model that turns out to be the best fit later!
+# MAGIC
+# MAGIC Let's try one more time, this time using MLflow's autolog() capability to log the model without adding extra code
 
 # COMMAND ----------
 

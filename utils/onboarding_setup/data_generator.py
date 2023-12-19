@@ -15,8 +15,8 @@ np.random.seed()
 
 num_rows = randint(200000, 300000)
 num_devices = randint(90, 110)
-model_ls = ['TwinX500', 'SkyJet234', 'SkyJet334', 'ThunderProp890', 'JetLift7000',
-            'AirPower360', 'BoostGlide1900', 'FlyForceX550', 'TurboFan3200', 
+model_ls = ['SkyJet134', 'SkyJet234', 'SkyJet334', 'EcoJet1000', 'JetLift7000',
+            'EcoJet2000', 'FlyForceX550', 'TurboFan3200', 'SkyBolt1', 'SkyBolt2', 
             'MightyWing1100', 'EcoJet3000', 'AeroGlider4150', 'SkyBolt250']
 factory_ls = ['A06', 'D18', 'J15', 'C04', 'T10']
 amplitude=1.2
