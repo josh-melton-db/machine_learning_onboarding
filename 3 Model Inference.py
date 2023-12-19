@@ -1,7 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # MLflow Model Inference
-# MAGIC This notebook is incomplete and for outline purposes only
 
 # COMMAND ----------
 
