@@ -108,14 +108,6 @@ print(counter1, counter2)
 
 # COMMAND ----------
 
-import pandas as pd
-import mlflow.sklearn
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import f1_score, recall_score
-from mlflow.models.signature import infer_signature
-import uuid
-import matplotlib.pyplot as plt
-
 with mlflow.start_run(run_name='Second Run RF') as run:
     # Create model, train it, and create predictions
     rf = RandomForestClassifier(n_estimators=100, random_state=42)
@@ -147,24 +139,19 @@ with mlflow.start_run(run_name='Second Run RF') as run:
 # MAGIC %md
 # MAGIC Our F1 score dropped, but recall improved! We may need to balance the two based on a cost-benefit analysis moving forward, but luckily we're tracking all of our runs and can select the model that turns out to be the best fit later!
 # MAGIC
-# MAGIC Let's try one more time, this time using MLflow's autolog() capability to log the model without adding extra code
+# MAGIC Let's try one more time, this time using MLflow's autolog() capability to log the model and numerous defaults without adding extra code
 
 # COMMAND ----------
 
 from sklearn.linear_model import LogisticRegression
 
 model_name = f"lr_{config['model_name']}"
-mlflow.sklearn.autolog() # Autolog create the run and adds the important information for us
-# lr = LogisticRegression()
-# lr.fit(X_train, y_train) # TODO reorganize to make this outside the context manager
+mlflow.sklearn.autolog() # Autolog creates the run and adds the important information for us
 
-with mlflow.start_run(run_name='Third Run LR') as run:
-    # Create model, train it, and create predictions. Defer logging to autolog() apart from our f1 metric for comparison
-    lr = LogisticRegression()
-    lr.fit(X_train, y_train)
-    predictions = lr.predict(X_test)
-    f1 = f1_score(y_test, predictions)
-    mlflow.log_metric('f1', f1)
+# Create model, train it, and create predictions. Defer logging to autolog()
+lr = LogisticRegression()
+lr.fit(X_train_oversampled, y_train_oversampled)
+predictions = lr.predict(X_test)
 
 # COMMAND ----------
 
@@ -176,15 +163,18 @@ with mlflow.start_run(run_name='Third Run LR') as run:
 from mlflow.tracking import MlflowClient
 client = MlflowClient()
 
+runs = client.search_runs(run.info.experiment_id, order_by=["metrics.recall DESC"])
+lowest_f1_run_id = runs[0].info.run_id
+
 # COMMAND ----------
 
-model_uri = f"runs:/{run.info.run_id}/model"
+model_uri = f"runs:/{lowest_f1_run_id}/model"
 model_details = mlflow.register_model(model_uri=model_uri, name=model_name)
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Once we feel confident, we can change the stage to Staging or Production so downstream consumers can use it
+# MAGIC Once we feel confident in our model's predictions, we can change the stage to Staging or Production so downstream consumers can use it. As we'll see in the next notebook, if we want to change to different model libraries our downstream consumers will be able to seamlessly continue to use the model
 
 # COMMAND ----------
 
