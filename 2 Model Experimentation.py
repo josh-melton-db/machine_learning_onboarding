@@ -1,7 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC #Model Experimentation
-# MAGIC This notebook is incomplete and for outline purposes only
 
 # COMMAND ----------
 
@@ -169,7 +168,7 @@ lowest_f1_run_id = runs[0].info.run_id
 # COMMAND ----------
 
 model_uri = f"runs:/{lowest_f1_run_id}/model"
-model_details = mlflow.register_model(model_uri=model_uri, name=model_name)
+model_details = mlflow.register_model(model_uri=model_uri, name=config['model_name'])
 
 # COMMAND ----------
 
@@ -179,7 +178,7 @@ model_details = mlflow.register_model(model_uri=model_uri, name=model_name)
 # COMMAND ----------
 
 client.transition_model_version_stage(
-    name=model_details.name,
+    name=config['model_name'],
     version=model_details.version,
     stage="Production"
 )

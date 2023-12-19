@@ -1,7 +1,7 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # MLflow Model Inference
-# MAGIC This repository is incomplete and for outline purposes only
+# MAGIC This notebook is incomplete and for outline purposes only
 
 # COMMAND ----------
 
@@ -26,37 +26,37 @@ feature_data
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC How do we make predictions on real time streams of data? Same as before, but on a streaming dataframe
+# MAGIC How do we make predictions on real time streams of data? Same as before, but on a streaming dataframe. We'll put our logic in a function this time. The foreachBatch calls the function on each microbatch in our streaming dataframe
 
 # COMMAND ----------
 
 # DBTITLE 1,Streaming Inference
 
-more_data_stream = spark.readStream.table(config['silver_features'])
+feature_data_stream = spark.readStream.table(config['silver_features'])
 
 def make_predictions(microbatch_df, batch_id):
     df_to_predict = microbatch_df.toPandas()
     df_to_predict['predictions'] = production_model.predict(df_to_predict) # we use the same model and function to make predictions!
     spark.createDataFrame(df_to_predict).write.mode('overwrite').saveAsTable(config['predictions_table'])
 
-dbutils.fs.rm(config['checkpoint_location'], True) # source data was overwritten during setup so we remove any existing checkpoints
-
 # COMMAND ----------
 
+dbutils.fs.rm(config['checkpoint_location'], True) # source data was overwritten during setup so we remove any existing checkpoints
 (
-  more_data_stream.writeStream
+  feature_data_stream.writeStream
   .format("delta")
   .option("checkpointLocation", config['checkpoint_location'])
-  .option("mergeSchema", "true") # if you want the schema of the target table to automatically add new columns 
-                                 # that are encountered, add this option. Can also be done in spark config
   .foreachBatch(make_predictions) 
-  .outputMode("update")
-  .trigger(availableNow=True) # if you want to run constantly and check for new data at some interval, use trigger(processingTime='5 minutes')
+  .trigger(availableNow=True) # if you want to run constantly and constantly check for new data, comment out this line
   # .queryName("example_query") # use this for discoverability in the Spark UI
   .start()
 ).awaitTermination()
 
 # COMMAND ----------
 
+
+
+# COMMAND ----------
+
 # MAGIC %md
-# MAGIC Commercial databricks also supports model, feature, and function serving APIs for real time inference
+# MAGIC Commercial databricks also supports model, feature, and function serving APIs for real time inference. Check out our documentation for more information on those topics
