@@ -87,7 +87,6 @@ features = features.drop('timestamp', axis=1)
 
 # COMMAND ----------
 
-features = features.sort_values(by='trip_id')
 features['rolling_mean_density'] = features['density'].shift(1).ewm(span=600).mean()
 features.display()
 

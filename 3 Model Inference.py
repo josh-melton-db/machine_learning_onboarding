@@ -20,6 +20,7 @@ config = get_config(spark)
 
 # COMMAND ----------
 
+# DBTITLE 1,Make Predictions
 import mlflow
 
 feature_data = spark.read.table(config['silver_features']).toPandas()
