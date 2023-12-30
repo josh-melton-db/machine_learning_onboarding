@@ -19,11 +19,9 @@ config = get_config(spark)
 # MAGIC %md
 # MAGIC # Pandas + Spark
 # MAGIC So far we've used pandas to run some single-node transformations on our data. If our data volume grows, we may want to run processes in parallel instead. Spark offers several approaches including
-# MAGIC - Pyspark Pandas
-# MAGIC - Pandas UDFs
-# MAGIC - Apply In Pandas
-# MAGIC
-# MAGIC TODO: add links for each
+# MAGIC - <a href="https://spark.apache.org/docs/latest/api/python/user_guide/pandas_on_spark/index.html">Pyspark Pandas</a>
+# MAGIC - <a href="https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.functions.pandas_udf.html">Pandas UDFs</a>
+# MAGIC - <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.GroupedData.applyInPandas.html">Apply In Pandas</a>
 # MAGIC
 # MAGIC Let's try the applyinpandas approach to run pandas our transformation in parallel across all of the trips in our dataset. This will scale out to all the nodes on our spark cluster, as opposed to traditional pandas which is single node and will encounter OOM errors at scale
 
@@ -86,13 +84,13 @@ from statsmodels.tsa.arima.model import ARIMA
 
 @pandas_udf("double")
 def forecast_arima(temperature: pd.Series, order_series: pd.Series) -> pd.Series:
-    order = tuple(map(int, order_series.iloc[0].strip('()').split(',')))
+    order = tuple(map(int, order_series.iloc[0].strip('()').split(','))) # TODO: is there a better way to broadcast a literal in a udf?
     model = ARIMA(temperature, order=order)
     model_fit = model.fit()
     return model_fit.predict()
 
 # Minimal Spark code - just select one column and add another. Our library, along with our complex logic, is still in pandas
-temp_predictions = features.select('temperature').withColumn('predicted_temp', forecast_arima('temperature', lit("(1,2,4)")))
+temp_predictions = features.select('temperature').withColumn('predicted_temp', forecast_arima('temperature', lit("(1, 2, 4)")))
 temp_predictions.display()
 
 # COMMAND ----------
@@ -120,7 +118,7 @@ def objective(params):
     temp_predictions = train_arima_features.withColumn('predicted_temp', forecast_arima('temperature', lit(order)))
     return evaluator.evaluate(temp_predictions)
 
-# Test two runs of the objective function with different parameters. Lower is better with the rmse evaluator
+# Test two runs of the objective function with different parameters. Lower is better on the rmse evaluator
 print(objective({'p': 1, 'd': 1, 'q': 1}), objective({'p': 1, 'd': 2, 'q': 0}))
 
 # COMMAND ----------
@@ -141,11 +139,15 @@ print(argmin)
 
 # COMMAND ----------
 
+optimal_order
+
+# COMMAND ----------
+
 # DBTITLE 1,Train Optimal ARIMA
-# # Use our optimal ARIMA hyperparameters and add the predictions as a feature
-# optimal_order = str((int(argmin['p']), int(argmin['d']), int(argmin['q'])))
-# features = features.withColumn('predicted_temp', forecast_arima('temperature', lit(optimal_order)))
-# features.display()
+# Use our optimal ARIMA hyperparameters and add the predictions as a feature
+optimal_order = str((int(argmin['p']), int(argmin['d']), int(argmin['q'])))
+features = features.withColumn('predicted_temp', forecast_arima('temperature', lit(optimal_order)))
+features.display()
 
 # COMMAND ----------
 
@@ -226,7 +228,7 @@ combo_features.display()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC By logging the feature logic along with our model, we've eliminated a lot of potential headaches in productionalizing our model, such as online/offline skew. Now, let's log the custom model to MLflow
+# MAGIC By logging the feature logic along with our model we've eliminated a lot of potential headaches in productionalizing our model, such as online/offline skew. Now, let's log the custom model to MLflow
 
 # COMMAND ----------
 
