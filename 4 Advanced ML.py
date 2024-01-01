@@ -191,7 +191,7 @@ def train_with_arima(pdf: pd.DataFrame):
     train = pdf.iloc[:int(len(pdf) * 0.8)]
     test = pdf.iloc[int(len(pdf) * 0.8):]
 
-    X_train = train.drop('defect', axis=1)
+    X_train = train.drop('defect', axis=1) # TODO: add upsampling from experimentation notebook
     X_test = test.drop('defect', axis=1)
     y_train = train['defect']
     y_test = test['defect']
@@ -205,6 +205,7 @@ def train_with_arima(pdf: pd.DataFrame):
 mlflow.sklearn.autolog()
 with mlflow.start_run(run_name='With ARIMA Features') as run:
     rf_model = train_with_arima(arima_features)
+mlflow.sklearn.autolog(disable=True)
 
 # COMMAND ----------
 
@@ -307,7 +308,7 @@ model_ids
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Now we'll loop over each model_id in our data and train a different model for each. Check out how the models are nested in the MLflow UI! The metrics for some models might have significantly increased based on this more highly tailored approach
+# MAGIC Now we'll loop over each model_id in our data and train a different model for each. Check out how the models are nested in the MLflow UI! The metrics for some models can significantly increase based on this more tailored approach
 
 # COMMAND ----------
 
