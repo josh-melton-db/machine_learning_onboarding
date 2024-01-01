@@ -73,6 +73,7 @@ display(pandas_bronze)
 
 # COMMAND ----------
 
+# DBTITLE 1,OHE Categoricals
 encoded_factory = pd.get_dummies(pandas_bronze['factory_id'], prefix='ohe')
 encoded_model = pd.get_dummies(pandas_bronze['model_id'], prefix='ohe')
 features = pd.concat([pandas_bronze.drop('factory_id', axis=1).drop('model_id', axis=1), encoded_factory, encoded_model], axis=1)
@@ -87,6 +88,7 @@ features = features.drop('timestamp', axis=1)
 
 # COMMAND ----------
 
+# DBTITLE 1,Density EWMA
 features['rolling_mean_density'] = features['density'].shift(1).ewm(span=600).mean()
 features.display()
 
@@ -99,6 +101,7 @@ features.display()
 
 # COMMAND ----------
 
+# DBTITLE 1,EWMA Temperature
 features['rolling_mean_temp'] = features['temperature'].shift(1).ewm(5).mean()
 features['temp_difference'] = features['rolling_mean_temp'] - features['temperature']
 features.display()
@@ -110,6 +113,7 @@ features.display()
 
 # COMMAND ----------
 
+# DBTITLE 1,Fill NAs
 features = features.drop('row_num', axis=1)
 features = features.fillna(method='ffill')
 features = features.fillna(0)
@@ -123,7 +127,3 @@ spark.createDataFrame(features).write.mode('overwrite').saveAsTable(config['silv
 
 # MAGIC %md
 # MAGIC Looks good! We've now explored our data, shared insights with others, and used the Pandas library that many data scientists are familiar with to create features on our data. Next let's see how Databricks can help us with model experimentation and management
-
-# COMMAND ----------
-
-
