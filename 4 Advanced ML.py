@@ -12,12 +12,12 @@ config = get_config(spark)
 
 # MAGIC %md
 # MAGIC # Pandas + Spark
-# MAGIC So far we've used pandas to run some single-node transformations on our data. If our data volume grows, we may want to run processes in parallel instead. Spark offers several approaches including:
+# MAGIC So far we've used Pandas to run some single core, single threaded transformations on our data. If our data volume grows, we may want to run processes in parallel instead. Spark offers several approaches for applying familiar Pandas logic on top of the parallelism of Spark, including:
 # MAGIC - <a href="https://spark.apache.org/docs/latest/api/python/user_guide/pandas_on_spark/index.html">Pyspark Pandas</a>
 # MAGIC - <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.GroupedData.applyInPandas.html">Apply In Pandas</a>
 # MAGIC - <a href="https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.functions.pandas_udf.html">Pandas UDFs</a>
 # MAGIC
-# MAGIC First, let's use the same logic from the _1 Data Exploration_ notebook, but this time using Pyspark Pandas. This will scale out to all the nodes on our spark cluster, as opposed to traditional pandas which is single node and will encounter OOM errors at scale. We'll also put the logic in a function so we can re-use it and test the logic more easily
+# MAGIC First, let's use the same logic from the _1 Data Exploration_ notebook, but this time using Pyspark Pandas. This will scale out to all the cores and nodes on our spark cluster, as opposed to traditional pandas which is single node and will encounter OOM errors at larger scales. We'll also put the logic in a function so we can re-use it and test the logic more easily
 
 # COMMAND ----------
 
@@ -44,7 +44,7 @@ features_ps = ohe_encoding(features_ps)
 # DBTITLE 1,Add Temp Features
 import pandas as pd
 
-def add_rolling_temp(pdf: pd.DataFrame) -> pd.DataFrame:
+def add_rolling_temp(pdf: pd.DataFrame) -> pd.DataFrame: # these type hints tell the compiler the input/output format
     pdf['rolling_mean_temp'] = pdf['temperature'].ewm(5).mean()
     pdf['temp_difference'] = pdf['rolling_mean_temp'] - pdf['temperature']
     pdf = pdf.fillna(method='ffill').fillna(0)
@@ -102,7 +102,6 @@ features_density.display()
 # DBTITLE 1,Add Arima Forecast
 from pyspark.sql.functions import pandas_udf, lit
 from statsmodels.tsa.arima.model import ARIMA
-
 
 @pandas_udf("double")
 def forecast_arima(temperature: pd.Series, order_series: pd.Series) -> pd.Series:
