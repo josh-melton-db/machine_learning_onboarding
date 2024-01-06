@@ -3,7 +3,7 @@
 # MAGIC # Introduction
 # MAGIC
 # MAGIC Welcome to Onboarding for Machine Learning on Databricks! </br>
-# MAGIC Please be sure to use an <a href="https://docs.databricks.com/en/machine-learning/index.html#create-a-cluster-using-databricks-runtime-ml">ML Runtime Cluster</a> with a recent Databricks Runtime
+# MAGIC Please be sure to use an <a href="https://docs.databricks.com/en/machine-learning/index.html#create-a-cluster-using-databricks-runtime-ml">ML Runtime Cluster</a> with a recent Databricks Runtime. The dataset should be small enough to run on any Databricks cluster, but if you're having trouble use the `num_rows` argument in the `generate_iot()` function to reduce the data volume.
 # MAGIC
 # MAGIC First we'll install the correct libraries, run the setup, and read our data. You can run cells via the UI or the "shift+enter" hotkey
 
@@ -32,7 +32,7 @@ highest_count_device_id = (
     bronze_table.where('defect=1')
     .groupBy('device_id').count() 
     .orderBy('count', ascending=False)  # Let's tackle the most problematic device in Pandas first, and
-).first()[0]                            # later use spark's distributed processing on the larger dataset
+).first()[0]                            # later use Spark's distributed processing on the larger dataset
 pandas_bronze = bronze_table.where(f'device_id = {highest_count_device_id}').toPandas()
 
 # COMMAND ----------
