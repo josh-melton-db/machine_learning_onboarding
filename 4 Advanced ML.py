@@ -17,7 +17,7 @@ config = get_config(spark)
 # MAGIC - <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.GroupedData.applyInPandas.html">Apply In Pandas</a>
 # MAGIC - <a href="https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.functions.pandas_udf.html">Pandas UDFs</a>
 # MAGIC
-# MAGIC First, let's use the same logic from the _1 Data Exploration_ notebook, but this time using Pyspark Pandas. This will scale out to all the cores and nodes on our Databricks cluster, as opposed to traditional pandas which is single node and will encounter OOM errors at larger scales. Spark also uses the entire cluster, while Pandas will leave much of a Spark cluster unused. We'll also put the logic in a function so we can re-use it and test the logic more easily
+# MAGIC First, let's use the same feature logic from the _1 Data Exploration_ notebook, but this time using Pyspark Pandas. This will scale out to all the cores and nodes on our Databricks cluster, as opposed to traditional pandas which is single node and will encounter OOM errors at larger scales. Spark also uses the entire cluster, while Pandas will leave much of a Spark cluster unused. We'll also put the logic in a function so we can re-use it and test the logic more easily
 
 # COMMAND ----------
 
@@ -93,7 +93,7 @@ features_density.display()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC If you chart visualize the temperature for defects vs non-defects, you can see that temperature has a significant impact on defect rate. Currently we're using a rolling mean to provide our model more informative temperature features. But what if we could integrate a forward looking temperature prediction into the features?
+# MAGIC If you chart the temperature for defects vs non-defects, you can see that temperature has a significant impact on defect rate. Currently we're using a rolling mean to provide our model more informative temperature features. But what if we could integrate a forward looking temperature prediction into the features?
 # MAGIC
 # MAGIC Let's train an ARIMA model to predict the next temperature that will occur using another method of parallelizing pandas operations, a Pandas UDF
 
