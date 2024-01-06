@@ -17,7 +17,7 @@ config = get_config(spark)
 # MAGIC - <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.GroupedData.applyInPandas.html">Apply In Pandas</a>
 # MAGIC - <a href="https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.functions.pandas_udf.html">Pandas UDFs</a>
 # MAGIC
-# MAGIC First, let's use the same logic from the _1 Data Exploration_ notebook, but this time using Pyspark Pandas. This will scale out to all the cores and nodes on our spark cluster, as opposed to traditional pandas which is single node and will encounter OOM errors at larger scales. We'll also put the logic in a function so we can re-use it and test the logic more easily
+# MAGIC First, let's use the same logic from the _1 Data Exploration_ notebook, but this time using Pyspark Pandas. This will scale out to all the cores and nodes on our Databricks cluster, as opposed to traditional pandas which is single node and will encounter OOM errors at larger scales. Spark also uses the entire cluster, while Pandas will leave much of a Spark cluster unused. We'll also put the logic in a function so we can re-use it and test the logic more easily
 
 # COMMAND ----------
 
