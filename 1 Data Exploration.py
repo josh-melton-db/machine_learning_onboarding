@@ -2,24 +2,19 @@
 # MAGIC %md
 # MAGIC # Introduction
 # MAGIC
-# MAGIC Welcome to an Overview of Machine Learning on Databricks! </br>
+# MAGIC Welcome to Onboarding for Machine Learning on Databricks! </br>
 # MAGIC Please be sure to use an <a href="https://docs.databricks.com/en/machine-learning/index.html#create-a-cluster-using-databricks-runtime-ml">ML Runtime Cluster</a> with a recent Databricks Runtime
 # MAGIC
 # MAGIC First we'll install the correct libraries, run the setup, and read our data. You can run cells via the UI or the "shift+enter" hotkey
 
 # COMMAND ----------
 
-# DBTITLE 1,Install Libraries
-pip install -q dbldatagen
-
-# COMMAND ----------
-
 # DBTITLE 1,Run Setup
-from utils.onboarding_setup import get_config, reset_tables, iot_generator
+from utils.onboarding_setup import get_config, reset_tables, generate_iot
 
 config = get_config(spark)
 reset_tables(spark, config, dbutils)
-iot_data = iot_generator(spark)
+iot_data = generate_iot(spark) # Use the num_rows or num_devices arguments to change the generated data
 iot_data.write.mode('overwrite').saveAsTable(config['bronze_table'])
 
 # COMMAND ----------
@@ -34,10 +29,10 @@ iot_data.write.mode('overwrite').saveAsTable(config['bronze_table'])
 import pandas as pd
 bronze_table = spark.read.table(config['bronze_table'])
 highest_count_device_id = (
-    bronze_table.where('model_id="SkyJet334" and defect=1')
+    bronze_table.where('defect=1')
     .groupBy('device_id').count() 
-    .orderBy('count', ascending=False) # Let's tackle the most problematic device first
-).first()[0]
+    .orderBy('count', ascending=False)  # Let's tackle the most problematic device in Pandas first, and
+).first()[0]                            # later use spark's distributed processing on the larger dataset
 pandas_bronze = bronze_table.where(f'device_id = {highest_count_device_id}').toPandas()
 
 # COMMAND ----------
