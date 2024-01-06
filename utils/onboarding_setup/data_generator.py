@@ -142,7 +142,8 @@ def add_trip_features(pdf: pd.DataFrame) -> pd.DataFrame:
     pdf['rotation_speed'] = rotation
     pdf['airflow_rate'] =  pdf['rotation_speed'].shift(5) / pdf['air_pressure']
     pdf = pdf.fillna(method='bfill')
-    pdf = pdf.fillna(-1000)
+    pdf = pdf.fillna(method='ffill')
+    pdf = pdf.fillna(0)
     return pdf
 
 trip_schema = '''device_id string, trip_id int, factory_id string, model_id string, timestamp timestamp, airflow_rate double,  
