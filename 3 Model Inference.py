@@ -4,11 +4,6 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,Install Libraries
-pip install -q dbldatagen
-
-# COMMAND ----------
-
 # DBTITLE 1,Import Config
 from utils.onboarding_setup import get_config
 config = get_config(spark)
@@ -59,9 +54,9 @@ dbutils.fs.rm(config['checkpoint_location'], True) # source data was overwritten
   feature_data_stream.writeStream
   .format("delta")
   .option("checkpointLocation", config['checkpoint_location'])
-  .foreachBatch(make_predictions) 
+  .foreachBatch(make_predictions) # run our prediction function on each microbatch
   .trigger(availableNow=True) # if you want to run constantly and constantly check for new data, comment out this line
-  # .queryName("example_query") # use this for discoverability in the Spark UI
+  .queryName(f'stream_to_{config["predictions_table"]}') # use this for discoverability in the Spark UI
   .start()
 ).awaitTermination()
 
