@@ -4,11 +4,6 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,Install Libraries
-pip install -q dbldatagen
-
-# COMMAND ----------
-
 # DBTITLE 1,Import Config
 from utils.onboarding_setup import get_config
 config = get_config(spark)
@@ -17,7 +12,7 @@ config = get_config(spark)
 
 # MAGIC %md
 # MAGIC # Pandas + Spark
-# MAGIC So far we've used pandas to run some single-node transformations on our data. If our data volume grows, we may want to run processes in parallel instead. Spark offers several approaches including
+# MAGIC So far we've used pandas to run some single-node transformations on our data. If our data volume grows, we may want to run processes in parallel instead. Spark offers several approaches including:
 # MAGIC - <a href="https://spark.apache.org/docs/latest/api/python/user_guide/pandas_on_spark/index.html">Pyspark Pandas</a>
 # MAGIC - <a href="https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.GroupedData.applyInPandas.html">Apply In Pandas</a>
 # MAGIC - <a href="https://spark.apache.org/docs/3.1.2/api/python/reference/api/pyspark.sql.functions.pandas_udf.html">Pandas UDFs</a>
@@ -56,12 +51,12 @@ def add_rolling_temp(pdf: pd.DataFrame) -> pd.DataFrame:
     return pdf
 
 rolling_temp_schema = '''
-    device_id string, trip_id int, airflow_rate double, rotation_speed double, pressure double, 
+    device_id string, trip_id int, airflow_rate double, rotation_speed double, air_pressure double, 
     temperature double, delay float, density float, defect float, ohe_A06 double,
-    ohe_AeroGlider4150 double, ohe_AirPower360 double, ohe_BoostGlide1900 double, ohe_C04 double, ohe_D18 double, 
+    ohe_AeroGlider4150 double, ohe_SkyBolt2 double, ohe_EcoJet2000 double, ohe_C04 double, ohe_D18 double, 
     ohe_EcoJet3000 double, ohe_FlyForceX550 double, ohe_J15 double, ohe_JetLift7000 double, ohe_MightyWing1100 double, 
-    ohe_SkyBolt250 double, ohe_SkyJet234 double, ohe_SkyJet334 double, ohe_T10 double, ohe_ThunderProp890 double, 
-    ohe_TurboFan3200 double, ohe_TwinX500 double, rolling_mean_temp double, temp_difference double
+    ohe_SkyBolt250 double, ohe_SkyJet234 double, ohe_SkyJet334 double, ohe_T10 double, ohe_EcoJet1000 double, 
+    ohe_TurboFan3200 double, ohe_SkyBolt1 double, ohe_SkyJet134 double, rolling_mean_temp double, temp_difference double
 '''
 
 # Translate the dataframe back to Spark and apply our pandas function in parallel
@@ -83,13 +78,13 @@ def add_rolling_density(pdf: pd.DataFrame) -> pd.DataFrame:
     return pdf
 
 rolling_density_schema = '''
-    device_id string, trip_id int, airflow_rate double, rotation_speed double, pressure double, 
+    device_id string, trip_id int, airflow_rate double, rotation_speed double, air_pressure double, 
     temperature double, delay float, density float, defect float, rolling_mean_temp double, 
     temp_difference double, rolling_mean_density double, ohe_A06 double, ohe_AeroGlider4150 double,
-    ohe_AirPower360 double, ohe_BoostGlide1900 double, ohe_C04 double, ohe_D18 double, ohe_EcoJet3000 double,
+    ohe_SkyBolt2 double, ohe_EcoJet2000 double, ohe_C04 double, ohe_D18 double, ohe_EcoJet3000 double,
     ohe_FlyForceX550 double, ohe_J15 double, ohe_JetLift7000 double, ohe_MightyWing1100 double, ohe_SkyBolt250 double,
-    ohe_SkyJet234 double, ohe_SkyJet334 double, ohe_T10 double, ohe_ThunderProp890 double, ohe_TurboFan3200 double,
-    ohe_TwinX500 double
+    ohe_SkyJet234 double, ohe_SkyJet334 double, ohe_T10 double, ohe_EcoJet1000 double, ohe_TurboFan3200 double,
+    ohe_SkyBolt1 double, ohe_SkyJet134 double
 '''
 
 features_density = features_temp.groupBy('device_id').applyInPandas(add_rolling_density, rolling_density_schema)
@@ -111,7 +106,7 @@ from statsmodels.tsa.arima.model import ARIMA
 
 @pandas_udf("double")
 def forecast_arima(temperature: pd.Series, order_series: pd.Series) -> pd.Series:
-    order = tuple(map(int, order_series.iloc[0].strip('()').split(','))) # TODO: is there a better way to broadcast a literal in a udf?
+    order = tuple(map(int, order_series.iloc[0].strip('()').split(',')))
     model = ARIMA(temperature, order=order)
     model_fit = model.fit()
     return model_fit.predict()
@@ -147,8 +142,13 @@ train_arima_features = (
 
 # Define objective function to minimize
 def objective(params):
-    order = str((int(params["p"]), int(params["d"]), int(params["q"])))
-    temp_predictions = train_arima_features.withColumn('predicted_temp', forecast_arima('temperature', lit(order)))
+    order = str((int(params['p']), int(params['d']), int(params['q'])))
+    temp_predictions = (
+        train_arima_features.dropna()
+        .select('temperature')
+        .withColumn('predicted_temp', forecast_arima('temperature', lit(order)))
+        .where('predicted_temp is not null and temperature is not null')
+    )
     return evaluator.evaluate(temp_predictions)
 
 # Test two runs of the objective function with different parameters. Lower is better on the rmse evaluator
@@ -161,12 +161,12 @@ from hyperopt import fmin, tpe, hp, SparkTrials
 import mlflow 
 
 # Define search space. Many possibilities, but Hyperopt identifies the best combinations to try
-search_space = {'p': hp.quniform('p', 0, 4, 1),
-                'd': hp.quniform('d', 0, 2, 1),
-                'q': hp.quniform('q', 0, 5, 1)}
+search_space = {'p': hp.quniform('p', 0, 3, 1),
+                'd': hp.quniform('d', 0, 3, 1),
+                'q': hp.quniform('q', 0, 4, 1)}
 
 # Run intelligent hyperparameter search over the search space
-# This may take a few minutes - you can reduce max_evals to speed it up
+# This may take a few minutes - you can reduce max_evals to finish faster
 argmin = fmin(fn=objective, space=search_space, algo=tpe.suggest, max_evals=16)
 print('Optimal hyperparameters: ', argmin)
 
@@ -188,18 +188,10 @@ arima_features = arima_features.withColumn('predicted_temp', forecast_arima('tem
 arima_features = arima_features.toPandas()
 
 def train_with_arima(pdf: pd.DataFrame):
-    train = pdf.iloc[:int(len(pdf) * 0.8)]
-    test = pdf.iloc[int(len(pdf) * 0.8):]
-
-    X_train = train.drop('defect', axis=1) # TODO: add upsampling from experimentation notebook
-    X_test = test.drop('defect', axis=1)
-    y_train = train['defect']
-    y_test = test['defect']
-    
+    X_train = pdf.drop('defect', axis=1)
+    y_train = pdf['defect']
     rf = RandomForestClassifier(n_estimators=100) # We could run hyperopt for these hyperparameters too!
     rf.fit(X_train, y_train)
-    predictions = rf.predict(X_test)
-    recall = recall_score(y_test, predictions)   
     return rf
 
 mlflow.sklearn.autolog()
@@ -230,7 +222,7 @@ mlflow.sklearn.autolog(disable=True)
 class ComboModel(mlflow.pyfunc.PythonModel):
     def __init__(self, defect_model, optimal_order):
         self.defect_model = defect_model
-        self.order = (1, 2, 4) # TODO: optimal_order
+        self.order = optimal_order
     
     def ohe_encoding(self, pdf):
         encoded_factory = pd.get_dummies(pdf['factory_id'], prefix='ohe')
@@ -266,28 +258,24 @@ class ComboModel(mlflow.pyfunc.PythonModel):
     def predict(self, context, model_input):
         return pd.DataFrame(self.defect_model.predict(model_input))
 
-combo_model = ComboModel(rf_model, optimal_order)
-
-# COMMAND ----------
-
-# DBTITLE 1,Create Model's Features
-raw = spark.read.table(config['bronze_table']).limit(5).toPandas().drop('defect', axis=1)
-combo_features = combo_model.generate_features(raw)
-combo_features.display()
+combo_model = ComboModel(rf_model, (int(argmin['p']), int(argmin['d']), int(argmin['q'])))
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC By logging the feature logic along with our model we could eliminate a lot of potential headaches in productionalizing our model, such as online/offline skew. In production this could even be coupled with some of the pandas parallelization techniques we saw earlier since we've defined a single featurization function that accepts and returns a pandas dataframe. For now, let's log this custom model to MLflow and use it to make predictions
+# MAGIC By logging the feature logic along with our model we could eliminate a lot of potential headaches in productionalizing our model, such as online/offline skew. In this example, ensuring that our ARIMA model gets the appropriate optimal_order parameter means we can create features as our model expects them. In production this could even be coupled with some of the pandas parallelization techniques we saw earlier since we've defined a single featurization function that accepts and returns a pandas dataframe. For now, let's log this custom model to MLflow and use it to make predictions
 
 # COMMAND ----------
 
-# DBTITLE 1,Log Custom Model
+# DBTITLE 1,Sample Model's Features
+raw = spark.read.table(config['bronze_table']).limit(5).toPandas().drop('defect', axis=1)
+combo_features = combo_model.generate_features(raw) # generate features with our model
+
 with mlflow.start_run() as run:
     mlflow.pyfunc.log_model('combo_model', python_model=combo_model, input_example=combo_features) 
 
 custom_model = mlflow.pyfunc.load_model(f'runs:/{run.info.run_id}/combo_model')
-display(custom_model.predict(combo_features))
+display(custom_model.predict(combo_features)) # test that loading our model works
 
 # COMMAND ----------
 
@@ -299,29 +287,46 @@ display(custom_model.predict(combo_features))
 
 # COMMAND ----------
 
-# DBTITLE 1,Get Model IDs
-# Return the model ids as a python list
+# MAGIC %md
+# MAGIC Now we'll train an ML model for each model_id in our data to learn the nuances of how our features impact each one. Check out how the models are nested in the MLflow UI! The metrics for some models can significantly increase based on this more tailored approach
+
+# COMMAND ----------
+
+def single_model_run(pdf: pd.DataFrame) -> pd.DataFrame:
+    run_id = pdf["run_id"].iloc[0]
+    model_id = pdf["model_id"].iloc[0]
+    n_used = pdf.shape[0]
+    with mlflow.start_run(run_id=run_id) as outer_run:  # Set the top level run
+        experiment_id = outer_run.info.experiment_id    # and nest the inner runs
+        with mlflow.start_run(run_name=model_id, nested=True, experiment_id=experiment_id):
+            features = combo_model.generate_features(pdf.drop('run_id', axis=1))
+            rf_model = train_with_arima(features)
+            model_specific_ml = ComboModel(rf_model, optimal_order)
+            mlflow.pyfunc.log_model('combo_model', python_model=model_specific_ml, input_example=pdf.head()) 
+            return_df = pd.DataFrame([[model_id, n_used]], columns=["model_id", "n_used"])
+    return return_df
+
+train_return_schema = "model_id string, n_used integer"
+
 raw = spark.read.table(config['bronze_table'])
-model_ids = [row[0] for row in raw.select('model_id').distinct().collect()]
-model_ids
+with mlflow.start_run(run_name="Device Specific Models") as run:
+    run_id = run.info.run_id
+    model_info = (
+        raw
+        .withColumn("run_id", lit(run_id)) # Add run_id
+        .groupby("model_id")
+        .applyInPandas(single_model_run, schema=train_return_schema)
+    )
+model_info.display()
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Now we'll loop over each model_id in our data and train a different model for each. Check out how the models are nested in the MLflow UI! The metrics for some models can significantly increase based on this more tailored approach
-
-# COMMAND ----------
-
-with mlflow.start_run(run_name="Device Specific Models") as run:
-    # Create nested runs with nested=True argument and name them by the model_ids list. This may take some time
-    for model_id in model_ids: # TODO: use applyinpandas instead of for loop
-        pdf = raw.where(f'model_id = "{model_id}"').toPandas()
-        with mlflow.start_run(run_name=model_id, nested=True):
-            features = combo_model.generate_features(pdf)
-            rf_model = train_with_arima(features)
-            combo_model = ComboModel(rf_model, optimal_order)
-            mlflow.pyfunc.log_model('combo_model', python_model=combo_model, input_example=pdf.head()) 
-
-# COMMAND ----------
-
-
+# MAGIC Congratulations on making it to the end of the ML onboarding notebooks! We've covered a lot:
+# MAGIC - using more traditional pandas-oriented ML skillsets on Databricks
+# MAGIC - model experimentation and registry with MLflow
+# MAGIC - batch and streaming inference
+# MAGIC - parallelizing pandas operations
+# MAGIC - hyperparameter tuning
+# MAGIC - custom MLflow models
+# MAGIC - nested MLflow runs
