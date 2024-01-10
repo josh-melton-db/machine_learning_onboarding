@@ -13,41 +13,44 @@
 # COMMAND ----------
 
 # DBTITLE 1,Setup
-from utils.onboarding_setup import get_config, generate_iot
-import mlflow
+from utils.onboarding_setup import get_config
 
 config = get_config(spark)
-iot_data = generate_iot(spark, 1000, 1) # Use the num_rows or num_devices arguments to change the generated data
-train_path = "/dbfs/tmp/jlm/iot_example/train" # If using Unity Catalog, use Volumes instead of dbfs
-test_path = "/dbfs/tmp/jlm/iot_example/test/" # TODO: convert to delta table
 BATCH_SIZE = 2048
-username = spark.sql("SELECT current_user()").first()['current_user()'] # TODO: turn into config
-experiment_name = 'pytorch_distributor'
-experiment_path = f'/Users/{username}/{experiment_name}'
-log_path = f"/dbfs/Users/{username}/pl_training_logger"
-ckpt_path = f"/dbfs/Users/{username}/pl_training_checkpoint"
+EPOCHS = 20
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC DeltaTorch requires a unique id column, so we'll add that before we save to our target feature tables. For purposes of demonstration we'll also stick to simple numeric columns
+# MAGIC
 
 # COMMAND ----------
 
 # DBTITLE 1,Create Features
 from pyspark.sql import Window
-from pyspark.sql.functions import monotonically_increasing_id, when, row_number, col
+from pyspark.sql.functions import monotonically_increasing_id, row_number, col, lit
 
+bronze_df = spark.read.table(config['bronze_table'])
+categorical_cols = ['device_id', 'trip_id', 'timestamp', 'factory_id', 'model_id']
+training_df = bronze_df.drop(*categorical_cols).orderBy(col('timestamp'))
+training_df = training_df.withColumn('id', row_number().over(Window.orderBy(monotonically_increasing_id())))
+training_cols = training_df.drop('id').columns
 
-# Sort by timestamp to split chronologically
-training_df = iot_data.drop('device_id', 'trip_id', 'timestamp', 'factory_id', 'model_id').orderBy(col('timestamp'))
-# split_index = int(training_df.count() * 0.7) #use the first 70% of the data for training
-# training_df = training_df.withColumn("id", row_number().over(Window.orderBy(monotonically_increasing_id()))) # Add incremental id column
-# train = training_df.where(col("id") <= split_index) # Training on first 70%
-# test = training_df.where(col("id") > split_index) # Testing on the remaining 30%
-
-# train.write.mode("overwrite").option('mergeSchema', 'true').save(train_path.replace('/dbfs', 'dbfs:'))
-# test.write.mode("overwrite").option('mergeSchema', 'true').save(test_path.replace('/dbfs', 'dbfs:'))
-input_columns = training_df.drop('id').columns
+split_index = int(training_df.count() * 0.7) # Sort by timestamp to split chronologically
+train_df = training_df.where(col('id') <= split_index)
+test_df = training_df.where(col('id') > split_index)
+train_df.write.mode('overwrite').format('delta').save(config['train_table'].replace('/dbfs', 'dbfs:')) 
+test_df.write.mode('overwrite').format('delta').save(config['test_table'].replace('/dbfs', 'dbfs:'))
 
 # COMMAND ----------
 
-# DBTITLE 1,Dataloader
+# MAGIC %md
+# MAGIC Once we've got our features into Delta and noted the path to the table, we're ready to create our dataloader class
+
+# COMMAND ----------
+
+# DBTITLE 1,Dataloader Definition
 import pytorch_lightning as pl
 from deltatorch import create_pytorch_dataloader, FieldSpec
 
@@ -61,7 +64,7 @@ class DeltaDataModule(pl.LightningDataModule):
         return create_pytorch_dataloader(
             path,
             id_field='id',
-            fields = [FieldSpec(field) for field in input_columns],
+            fields = [FieldSpec(field) for field in training_cols],
             batch_size=batch_size,
         )
 
@@ -76,16 +79,21 @@ class DeltaDataModule(pl.LightningDataModule):
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC Next, we'll create our PyTorch Lightning model. Note that this paradigm is the same for PyTorch, and very similar for Tensorflow
+
+# COMMAND ----------
+
 # DBTITLE 1,Model Definition
-import torch
+import mlflow
+import os
 from torch.utils.data import DataLoader, TensorDataset
 from pyspark.ml.torch.distributor import TorchDistributor
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from pytorch_lightning.loggers import MLFlowLogger
 from pytorch_lightning.callbacks import EarlyStopping
-import mlflow
-import os
 
 
 class BinaryClassifier(pl.LightningModule):
@@ -108,7 +116,7 @@ class BinaryClassifier(pl.LightningModule):
         features = torch.stack([batch[key] for key in feature_keys], dim=1).float()
         predictions = self(features) 
         loss = F.binary_cross_entropy(predictions, target.view(-1, 1))
-        self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True) # log to mlflow
+        self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True) # logs to MLflow
         return loss
 
     def configure_optimizers(self):
@@ -127,19 +135,23 @@ def train_model(dataloader, input_size, num_gpus=1, single_node=True):
     model = BinaryClassifier('defect', input_size)
     model.to(device)
     mlflow.autolog(disable=True)
-    mlflow.set_experiment(experiment_path)
-    logger = MLFlowLogger(experiment_name=experiment_path)
+    mlflow.set_experiment(config['experiment_path'])
+    logger = MLFlowLogger(experiment_name=config['experiment_path'])
     early_stopping = EarlyStopping(monitor='train_loss', patience=3, mode='min', log_rank_zero_only=True)
-    trainer = pl.Trainer(max_epochs=5, logger=logger, callbacks=[early_stopping], default_root_dir=log_path)
+    trainer = pl.Trainer(max_epochs=EPOCHS, logger=logger, callbacks=[early_stopping], default_root_dir=config['log_path'])
     trainer.fit(model, dataloader)
     return model
 
 # COMMAND ----------
 
-# DBTITLE 1,Set Up Distributors
-input_size = len(input_columns) - 1
-distributor = TorchDistributor(num_processes=2, local_mode=False, use_gpu=False)
-data_module = DeltaDataModule(train_path, test_path)
+# DBTITLE 1,Create Dataloader
+input_size = len(training_cols) - 1 # all columns minus the label
+data_module = DeltaDataModule(config['train_table'], config['test_table'])
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC Let's try running our train_model function on a single node by simply passing it the delta module and the input size
 
 # COMMAND ----------
 
@@ -148,7 +160,13 @@ model = train_model(data_module, input_size)
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC If we've got more data than a single node can handle, we can try distributing the training run across our node. `num_processes` is the parameter that controls the level of parallelism - we can set this to the number of gpus or nodes our cluster has. We highly recommend starting with single node training runs and only introducing the complexity of distributed deep learning if those don't work
+
+# COMMAND ----------
+
 # DBTITLE 1,Multi Node Run
+distributor = TorchDistributor(num_processes=2, local_mode=False, use_gpu=False)
 model = distributor.run(train_model, data_module, input_size)
 
 # COMMAND ----------
