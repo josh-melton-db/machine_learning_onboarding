@@ -141,7 +141,7 @@ def add_trip_features(pdf: pd.DataFrame) -> pd.DataFrame:
     pdf['delay'] =  abs(init_delay * np.sqrt(rotation))
     pdf['rotation_speed'] = rotation
     pdf['airflow_rate'] =  pdf['rotation_speed'].shift(5) / pdf['air_pressure']
-    pdf = pdf.fillna(method='bfill')
+    pdf = pdf.fillna(method='bfill') # TODO: fix the missing temperatures more effectively
     pdf = pdf.fillna(method='ffill')
     pdf = pdf.fillna(0)
     return pdf
@@ -158,7 +158,7 @@ def add_defects(pdf: pd.DataFrame) -> pd.DataFrame:
       (pdf['temp_difference'] > 1.5) & (pdf['model_id'] == 'SkyJet234') & (pdf['temperature'] > 84),
       (pdf['temp_difference'] > 1.3) & (pdf['model_id'] == 'SkyJet334') & (pdf['temperature'] > 87),
       (pdf['delay'] > 40) & (pdf['rotation_speed'] > 590),
-      (pdf['density'] > 4.3) & (pdf['air_pressure'] < 780),
+      (pdf['density'] > 4.3) & (pdf['air_pressure'] < 780), # TODO: add in some factory_id dependence as well
     ]
     outcomes = [round(random()+.3), round(random()+.3), round(random()+.2), round(random()+.15)]
     pdf['defect'] = np.select(conditions, outcomes, default=0)
@@ -166,7 +166,7 @@ def add_defects(pdf: pd.DataFrame) -> pd.DataFrame:
     return pdf
 
 defect_schema = '''device_id string, trip_id int, factory_id string, model_id string, timestamp timestamp, airflow_rate double,  
-            rotation_speed double, air_pressure double, temperature double, delay float, density float, defect float'''
+                    rotation_speed double, air_pressure double, temperature double, delay float, density float, defect float'''
 
 def generate_iot(spark, num_rows=num_rows, num_devices=num_devices):
     df = (
