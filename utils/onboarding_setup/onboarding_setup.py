@@ -11,7 +11,7 @@ def get_config(spark):
       'bronze_table' : f'{schema}.{current_user}_sensor_bronze',
       'defect_table' : f'{schema}.{current_user}_defect_bronze',
       'silver_table' : f'{schema}.{current_user}_sensor_silver',
-      'silver_features' : f'{schema}.{current_user}features_table',
+      'silver_features' : f'{schema}.{current_user}_features_table',
       'gold_table' : f'{schema}.{current_user}_sensor_gold',
       'predictions_table' : f'{current_user}_predictions',
       'tuned_bronze_table' : f'{schema}.{current_user}_sensor_bronze_clustered',
