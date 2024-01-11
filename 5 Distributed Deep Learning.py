@@ -80,7 +80,7 @@ class DeltaDataModule(pl.LightningDataModule):
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Next, we'll create our PyTorch Lightning model. Note that this paradigm is the same for PyTorch, and very similar for Tensorflow
+# MAGIC Next, we'll create our PyTorch Lightning model class and set up our experiment. Note that this paradigm is the same for vanilla PyTorch, and very similar for Tensorflow
 
 # COMMAND ----------
 
