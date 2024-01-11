@@ -63,4 +63,4 @@ dbutils.fs.rm(config['checkpoint_location'], True) # source data was overwritten
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Commercial databricks also supports model, feature, and function serving APIs for real time inference. Check out our documentation for more information on those topics
+# MAGIC Commercial databricks instances also support real time model, feature, and function serving APIs. Check out our documentation for more information on those topics
