@@ -28,6 +28,11 @@ feature_data
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC You can also load MLflow models to make predictions in parallel using Spark, as [demonstrated here](https://docs.databricks.com/en/mlflow/model-example.html) and on the artifacts tab of your MLflow UI
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC # MLflow Streaming Inference
 
 # COMMAND ----------

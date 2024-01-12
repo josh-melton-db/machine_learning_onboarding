@@ -157,7 +157,7 @@ print(objective({'p': 1, 'd': 1, 'q': 1}), objective({'p': 1, 'd': 2, 'q': 0}))
 # COMMAND ----------
 
 # DBTITLE 1,Hyperparameter Tune ARIMA
-from hyperopt import fmin, tpe, hp, SparkTrials
+from hyperopt import fmin, tpe, hp # , SparkTrials
 
 # Define search space. Many possibilities, but Hyperopt identifies the best combinations to try
 search_space = {'p': hp.quniform('p', 0, 3, 1),
@@ -165,6 +165,7 @@ search_space = {'p': hp.quniform('p', 0, 3, 1),
                 'q': hp.quniform('q', 0, 4, 1)}
 
 # Run intelligent hyperparameter search over the search space
+# Use trials=SparkTrials() if your code isn't already distributed
 # This may take a few minutes - you can reduce max_evals to finish faster
 argmin = fmin(fn=objective, space=search_space, algo=tpe.suggest, max_evals=16)
 print('Optimal hyperparameters: ', argmin)
@@ -208,7 +209,7 @@ class ComboModel(mlflow.pyfunc.PythonModel):
         pdf = pdf.drop('timestamp', axis=1)
         return pdf
 
-    def add_missing_ohes(self, pdf: pd.DataFrame):
+    def add_missing_ohes(self, pdf: pd.DataFrame) -> pd.DataFrame:
         ohes_to_add = [column for column in self.ohe_list if column not in pdf.columns]
         for col in ohes_to_add:
             pdf[col] = 0
@@ -280,7 +281,7 @@ display(custom_model.predict(raw)) # test that our model works for feature gener
 
 # COMMAND ----------
 
-# DBTITLE 1,Nested
+# DBTITLE 1,Nested Model Training
 def single_model_run(pdf: pd.DataFrame) -> pd.DataFrame:
     run_id = pdf["run_id"].iloc[0]
     model_id = pdf["model_id"].iloc[0]
@@ -325,7 +326,6 @@ class OriginDelegatingModel(PythonModel):
 
 model_map = {row['model_id']: mlflow.pyfunc.load_model(f'runs:/{row["run_id"]}/combo_model_{row["model_id"]}')
              for row in model_info.collect()}
-
 inference_model = OriginDelegatingModel(model_map)
 inference_model.predict(bronze_df.drop('defect').sample(.01).toPandas())
 

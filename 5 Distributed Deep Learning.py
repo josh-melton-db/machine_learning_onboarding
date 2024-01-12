@@ -37,7 +37,7 @@ training_df = bronze_df.drop(*categorical_cols).orderBy(col('timestamp'))
 training_df = training_df.withColumn('id', row_number().over(Window.orderBy(monotonically_increasing_id())))
 training_cols = training_df.drop('id').columns
 
-split_index = int(training_df.count() * 0.7) # Sort by timestamp to split chronologically
+split_index = int(training_df.count() * 0.7) 
 train_df = training_df.where(col('id') <= split_index)
 test_df = training_df.where(col('id') > split_index)
 train_df.write.mode('overwrite').format('delta').save(config['train_table'].replace('/dbfs', 'dbfs:')) 
