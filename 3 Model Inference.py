@@ -49,7 +49,7 @@ feature_data_stream = spark.readStream.table(config['silver_features'])
 def make_predictions(microbatch_df, batch_id):
     df_to_predict = microbatch_df.toPandas()
     df_to_predict['predictions'] = production_model.predict(df_to_predict) # we use the same model and function to make predictions!
-    spark.createDataFrame(df_to_predict).write.mode('overwrite').saveAsTable(config['predictions_table'])
+    spark.createDataFrame(df_to_predict).write.mode('overwrite').option('mergeSchema', 'true').saveAsTable(config['predictions_table'])
 
 # COMMAND ----------
 

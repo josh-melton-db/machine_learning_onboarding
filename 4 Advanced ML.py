@@ -61,7 +61,7 @@ rolling_temp_schema = '''
 
 # Translate the dataframe back to Spark and apply our pandas function in parallel
 features_spark = features_ps.to_spark()
-features_temp = features_spark.groupBy('trip_id').applyInPandas(add_rolling_temp, rolling_temp_schema)
+features_temp = features_spark.groupBy('device_id', 'trip_id').applyInPandas(add_rolling_temp, rolling_temp_schema)
 features_temp.display()
 
 # COMMAND ----------
@@ -102,7 +102,7 @@ features_density.display()
 # DBTITLE 1,Add Arima Forecast
 from pyspark.sql.functions import pandas_udf, lit
 from statsmodels.tsa.arima.model import ARIMA
-import mlflow 
+import mlflow
 
 @pandas_udf("double")
 def forecast_arima(temperature: pd.Series, order_series: pd.Series) -> pd.Series:
