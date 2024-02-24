@@ -89,16 +89,19 @@ def make_timeseries(pattern, num_points, frequency, amplitude, trend_factor=0, n
             timeseries[i] = noise[i] + (timeseries[i-1] * (1+trend_factor)) - (timeseries[i-2] * (1-trend_factor))
     return timeseries 
 
-def get_starting_temps(dates, noisy=.3, trend=.1, mean=58, std_dev=17) -> pd.DataFrame:
-    num_rows = max(2, len(dates))
+def get_starting_temps(noisy=.3, trend=.1, mean=58, std_dev=17) -> pd.DataFrame:
+    dates = pd.date_range(start='2023-01-01', end='2023-12-31')
+    num_rows = len(dates)
     normal1 = np.random.normal(loc=mean, scale=std_dev, size=num_rows // 2).clip(min=0, max=78)
     normal1 = np.sort(normal1)
     normal2 = np.random.normal(loc=mean, scale=std_dev, size=num_rows // 2 + num_rows % 2).clip(min=0, max=78)
     normal2 = np.sort(normal2)[::-1]
     normal = np.concatenate((normal1, normal2))
     noise = 9.5 * make_timeseries('autoregressive', num_rows, frequency, amplitude, noisy=noisy, trend_factor=trend)
-    dates['starting_temp'] = normal + noise
-    return dates
+    temps = normal + noise
+    pdf = pd.DataFrame({'date': dates, 'starting_temp': temps})
+    pdf['date'] = pdf['date'].dt.date
+    return pdf
 
 def add_weather(pdf: pd.DataFrame) -> pd.DataFrame:
     num_rows = len(pdf)
@@ -154,8 +157,8 @@ def add_defects(pdf: pd.DataFrame) -> pd.DataFrame:
     pdf['temp_ewma'] = pdf['temperature'].shift(1).ewm(5).mean()
     pdf['temp_difference'] = pdf['temperature'] - pdf['temp_ewma']
 
-    conditions = [
-      (pdf['temp_difference'] > 1.5) & (pdf['model_id'] == 'SkyJet234') & (pdf['temperature'] > 84),
+    conditions = [ # TODO: don't hardcode temps, take value at some percentile to help with different dataset sizes
+      (pdf['temp_difference'] > 1.5) & (pdf['model_id'] == 'SkyJet234') & (pdf['temperature'] > 84), 
       (pdf['temp_difference'] > 1.3) & (pdf['model_id'] == 'SkyJet334') & (pdf['temperature'] > 87),
       (pdf['delay'] > 40) & (pdf['rotation_speed'] > 590),
       (pdf['density'] > 4.3) & (pdf['air_pressure'] < 780), # TODO: add in some factory_id dependence as well
@@ -169,20 +172,17 @@ defect_schema = '''device_id string, trip_id int, factory_id string, model_id st
                     rotation_speed double, air_pressure double, temperature double, delay float, density float, defect float'''
 
 def generate_iot(spark, num_rows=num_rows, num_devices=num_devices):
-    df = (
+    starting_temps = spark.createDataFrame(get_starting_temps())
+    return (
         create_initial_df(spark, num_rows, num_devices)
         .withColumn('device_id', col('device_id').cast('string'))
         .groupBy('device_id').applyInPandas(add_timestamps, timestamp_schema)
         .withColumn('date', to_date(col('timestamp')))
         .withColumn('trip_id', dense_rank().over(Window.partitionBy('device_id').orderBy('date')))
-    )
-    starting_temps = spark.createDataFrame(get_starting_temps(df.select('date').distinct().orderBy('date').toPandas()))
-    final_df = (
-        df.join(starting_temps, 'date', 'left')
+        .join(starting_temps, 'date', 'left')
         .groupBy('trip_id', 'device_id').applyInPandas(add_weather, weather_schema)
         .drop('starting_temp', 'date')
         .groupBy('device_id').applyInPandas(add_lifetime_features, lifetime_schema)
         .groupBy('device_id', 'trip_id').applyInPandas(add_trip_features, trip_schema)
         .groupBy('device_id').applyInPandas(add_defects, defect_schema)
     )
-    return final_df

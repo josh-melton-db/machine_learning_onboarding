@@ -14,7 +14,7 @@ from utils.onboarding_setup import get_config, reset_tables, generate_iot
 
 config = get_config(spark)
 reset_tables(spark, config, dbutils)
-iot_data = generate_iot(spark) # Use the num_rows or num_devices arguments to change the generated data
+iot_data = generate_iot(spark) # Use the num_rows and num_devices arguments to change the generated data
 iot_data.write.mode('overwrite').saveAsTable(config['bronze_table'])
 
 # COMMAND ----------
