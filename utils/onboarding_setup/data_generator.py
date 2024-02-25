@@ -11,7 +11,7 @@ import random
 random.seed(0)
 from random import randint, shuffle, random
 
-
+# TODO: make this file a class, set these as default attributes
 num_rows = 250000
 num_devices = 200
 amplitude = 1.2
@@ -144,8 +144,8 @@ def add_trip_features(pdf: pd.DataFrame) -> pd.DataFrame:
     pdf['delay'] =  abs(init_delay * np.sqrt(rotation))
     pdf['rotation_speed'] = rotation
     pdf['airflow_rate'] =  pdf['rotation_speed'].shift(5) / pdf['air_pressure']
-    pdf = pdf.fillna(method='bfill') # TODO: fix the missing temperatures more effectively
-    pdf = pdf.fillna(method='ffill')
+    pdf = pdf.fillna(method='bfill') # There shouldn't be nulls, but fill to eliminate
+    pdf = pdf.fillna(method='ffill') # the possibility of the notebooks failing
     pdf = pdf.fillna(0)
     return pdf
 
@@ -156,14 +156,17 @@ def add_defects(pdf: pd.DataFrame) -> pd.DataFrame:
     pdf = pdf.sort_values(['timestamp'])
     pdf['temp_ewma'] = pdf['temperature'].shift(1).ewm(5).mean()
     pdf['temp_difference'] = pdf['temperature'] - pdf['temp_ewma']
+    percentile89 = pdf['temperature'].quantile(0.89)
+    percentile93 = pdf['temperature'].quantile(0.93)
 
-    conditions = [ # TODO: don't hardcode temps, take value at some percentile to help with different dataset sizes
-      (pdf['temp_difference'] > 1.5) & (pdf['model_id'] == 'SkyJet234') & (pdf['temperature'] > 84), 
-      (pdf['temp_difference'] > 1.3) & (pdf['model_id'] == 'SkyJet334') & (pdf['temperature'] > 87),
-      (pdf['delay'] > 40) & (pdf['rotation_speed'] > 590),
-      (pdf['density'] > 4.3) & (pdf['air_pressure'] < 780), # TODO: add in some factory_id dependence as well
+    conditions = [
+      (pdf['temp_difference'] > 1.8) & (pdf['factory_id'] == 'A06') & (pdf['temperature'] > percentile89),
+      (pdf['temp_difference'] > 1.8) & (pdf['model_id'] == 'SkyJet234') & (pdf['temperature'] > percentile89),
+      (pdf['temp_difference'] > 1.9) & (pdf['model_id'] == 'SkyJet334') & (pdf['temperature'] > percentile93),
+      (pdf['delay'] > 39) & (pdf['rotation_speed'] > 590),
+      (pdf['density'] > 4.2) & (pdf['air_pressure'] < 780),
     ]
-    outcomes = [round(random()+.3), round(random()+.3), round(random()+.2), round(random()+.15)]
+    outcomes = [round(random()+.2), round(random()+.2), round(random()+.2), round(random()+.2), round(random()+.15)]
     pdf['defect'] = np.select(conditions, outcomes, default=0)
     pdf = pdf.drop(['temp_difference', 'temp_ewma'], axis=1)        
     return pdf

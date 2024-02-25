@@ -1,6 +1,8 @@
 # Databricks notebook source
 dbutils.library.restartPython()
 
+# COMMAND ----------
+
 from onboarding_setup import generate_iot
 
 df = generate_iot(spark)
