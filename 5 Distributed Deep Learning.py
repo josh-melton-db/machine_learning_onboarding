@@ -161,7 +161,7 @@ model = train_model(data_module, input_size)
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC If we've got more data than a single node can handle, we can try distributing the training run across our node. `num_processes` is the parameter that controls the level of parallelism - we can set this to the number of gpus or nodes our cluster has. We highly recommend starting with single node training runs and only introducing the complexity of distributed deep learning if those don't work
+# MAGIC If we've got more data than a single node can handle, we can try distributing the training run across our node. `num_processes` is the parameter that controls the level of parallelism - we can set this to the number of gpus or nodes our cluster has. We highly recommend starting with single node training runs and only introducing the complexity of distributed deep learning if those don't work. If you're using the default settings and a typical cluster, the single node training run will most likely be faster in this instance since it doesn't incur the overhead of communication between nodes. However, if you're working against constraints such as a massive dataset that won't fit into memory, this can be a more efficient approach
 
 # COMMAND ----------
 
