@@ -1,7 +1,7 @@
 import random
+import datetime
 
 def get_config(spark):
-  num_rows = random.randint(1000, 2000)
   current_user = spark.sql('select current_user()').collect()[0][0].split('@')[0].replace('.', '_')
   username = spark.sql("SELECT current_user()").first()['current_user()'] 
   schema = f'onboarding'
@@ -22,7 +22,6 @@ def get_config(spark):
       'log_path' : f'/dbfs/tmp/{current_user}/pl_training_logger',
       'ckpt_path' : f'/dbfs/tmp/{current_user}/pl_training_checkpoint',
       'experiment_path' : f'/Users/{username}/distributed_pl',
-      'rows_per_run' : num_rows,
       'model_name' : f'device_defect_{current_user}'
   }
 
@@ -30,3 +29,37 @@ def reset_tables(spark, config, dbutils):
   spark.sql(f"drop schema if exists {config['schema']} CASCADE")
   spark.sql(f"create schema {config['schema']}")
   dbutils.fs.rm(config['checkpoint_location'], True)
+
+dgconfig = {
+    "shared": {
+        "num_rows": 250000,
+        "num_devices": 200,
+        "start": datetime.datetime(2023, 1, 1, 0, 0, 0),
+        "end": datetime.datetime(2023, 12, 31, 23, 59, 59),
+        "frequency": 0.35,
+        "amplitude": 1.2,
+    },
+    "starting_temps": {
+        "noisy": 0.3,
+        "trend": 0.1,
+        "mean": 58,
+        "std_dev": 17,
+    },
+    "timestamps": {
+        "column_name": "timestamp",
+        "minimum": 10,
+        "maximum": 350,
+    },
+    "weather": {
+        "trend": -0.8,
+        "noisy": 1,
+    },
+    "lifetime": {
+        "trend": 0.4,
+        "noisy": 0.6,
+    },
+    "trip": {
+        "trend": 0.2,
+        "noisy": 1.2,
+    },
+}

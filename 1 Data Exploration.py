@@ -2,19 +2,19 @@
 # MAGIC %md
 # MAGIC # Introduction
 # MAGIC
-# MAGIC Welcome to Onboarding for Machine Learning on Databricks! </br>
-# MAGIC Please be sure to use an <a href="https://docs.databricks.com/en/machine-learning/index.html#create-a-cluster-using-databricks-runtime-ml">ML Runtime Cluster</a> with a recent Databricks Runtime. The dataset should be small enough to run on any Databricks cluster, but if you're having trouble use the `num_rows` argument in the `generate_iot()` function to reduce the data volume.
+# MAGIC Welcome to Onboarding for Machine Learning on Databricks! </br></br>
+# MAGIC Please be sure to use an <a href="https://docs.databricks.com/en/machine-learning/index.html#create-a-cluster-using-databricks-runtime-ml">ML Runtime Cluster</a> with a recent Databricks Runtime. The dataset is small enough to run on a typical Databricks cluster, but if the demo is running slowly you can change the dgconfig dictionary passed to `generate_iot()` to reduce the data volume.
 # MAGIC
 # MAGIC First we'll install the correct libraries, run the setup, and read our data. You can run cells via the UI or the "shift+enter" hotkey
 
 # COMMAND ----------
 
 # DBTITLE 1,Run Setup
-from utils.onboarding_setup import get_config, reset_tables, generate_iot
+from utils.onboarding_setup import get_config, reset_tables, generate_iot, dgconfig
 
 config = get_config(spark)
 reset_tables(spark, config, dbutils)
-iot_data = generate_iot(spark) # Use the num_rows and num_devices arguments to change the generated data
+iot_data = generate_iot(spark, dgconfig) # Update dgconfig['shared']['num_rows'] to change the generated data volume
 iot_data.write.mode('overwrite').saveAsTable(config['bronze_table'])
 
 # COMMAND ----------
