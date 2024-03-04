@@ -104,16 +104,20 @@ from pyspark.sql.functions import pandas_udf, lit
 from statsmodels.tsa.arima.model import ARIMA
 import mlflow
 
-@pandas_udf("double")
-def forecast_arima(temperature: pd.Series, order_series: pd.Series) -> pd.Series:
-    mlflow.sklearn.autolog(disable=True)
-    order = tuple(map(int, order_series.iloc[0].strip('()').split(',')))
-    model = ARIMA(temperature, order=order)
-    model_fit = model.fit()
-    return model_fit.predict()
+# This is a neat programming trick called a closure which allows us to parameterize a function
+# which wouldn't otherwise accept parameters
+def create_forecast_arima(order):
+    @pandas_udf("double")
+    def forecast_arima(temperature: pd.Series) -> pd.Series:
+        mlflow.sklearn.autolog(disable=True)
+        model = ARIMA(temperature, order=order)
+        model_fit = model.fit()
+        return model_fit.predict()
+    return forecast_arima
 
 # Minimal Spark code - just select one column and add another. We can still use Pandas for our logic
-features_arima = features_density.withColumn('predicted_temp', forecast_arima('temperature', lit('(1, 2, 4)')))
+forecast_arima = create_forecast_arima((1, 2, 4))
+features_arima = features_density.withColumn('predicted_temp', forecast_arima('temperature'))
 features_arima.display()
 
 # COMMAND ----------
@@ -143,11 +147,12 @@ tune_arima_features = (
 
 # Define objective function to minimize
 def objective(params):
-    order = str((int(params['p']), int(params['d']), int(params['q'])))
+    order = (params['p'], params['d'], params['q'])
+    forecast_arima = create_forecast_arima(order)
     temp_predictions = (
         tune_arima_features.dropna()
         .select('temperature')
-        .withColumn('predicted_temp', forecast_arima('temperature', lit(order)))
+        .withColumn('predicted_temp', forecast_arima('temperature'))
     )
     return evaluator.evaluate(temp_predictions)
 
