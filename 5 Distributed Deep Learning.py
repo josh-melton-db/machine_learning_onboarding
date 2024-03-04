@@ -1,7 +1,7 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # 5 Distributed Deep Learning With Pytorch Lightning
-# MAGIC While our dataset isn't complex enough to warrant deep learning, some problems might require more sophisticated solutions. Distributing deep learning across nodes is complex, but luckily we've got tooling that plugs the common deep learning frameworks (Pytorch and Tensorflow) into Databricks' stack (Spark and Delta Lake) quite simply. 
+# MAGIC While our dataset isn't complex enough to warrant deep learning, some problems might require more sophisticated solutions. Distributing deep learning across nodes is complex, but luckily we've got tooling that plugs the common deep learning frameworks (Pytorch and Tensorflow) into Databricks' stack (Spark and Delta Lake) in a fairly simple way. 
 # MAGIC
 # MAGIC In this notebook, we'll create a dataloader out of a Delta Lake table and define a [Pytorch Lightning](https://lightning.ai/docs/pytorch/stable/) model, then use those to create a model training function. We'll use that model training function to train the model on a single node, and then use the exact same function to distribute the training of the model. This is helpful when you've got large volumes of data which require
 
