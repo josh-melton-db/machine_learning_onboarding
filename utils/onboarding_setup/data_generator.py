@@ -173,10 +173,10 @@ defect_schema = '''device_id string, trip_id int, factory_id string, model_id st
                     rotation_speed double, air_pressure double, temperature double, delay float, density float, defect float'''
 
 def generate_iot(spark, dgconfig):
-    temps = get_starting_temps(**dgconfig['shared'] | dgconfig['starting_temps'])
+    temps = get_starting_temps(**dgconfig['shared'] | dgconfig['temperature']['lifetime'])
     starting_temps = spark.createDataFrame(temps)
     add_timestamps = create_add_timestamps_func(**dgconfig['shared'] | dgconfig['timestamps'])
-    add_weather = create_add_weather_func(**dgconfig['shared'] | dgconfig['weather'])
+    add_weather = create_add_weather_func(**dgconfig['shared'] | dgconfig['temperature']['trip'])
     add_lifetime_features = create_add_lifetime_features_func(**dgconfig['shared'] | dgconfig['lifetime'])
     add_trip_features = create_add_trip_features_func(**dgconfig['shared'] | dgconfig['trip'])
     return (

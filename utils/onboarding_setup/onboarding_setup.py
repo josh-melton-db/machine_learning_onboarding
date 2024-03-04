@@ -39,20 +39,29 @@ dgconfig = {
         "frequency": 0.35,
         "amplitude": 1.2,
     },
-    "starting_temps": {
-        "noisy": 0.3,
-        "trend": 0.1,
-        "mean": 58,
-        "std_dev": 17,
-    },
     "timestamps": {
         "column_name": "timestamp",
         "minimum": 10,
         "maximum": 350,
     },
-    "weather": {
+    "temperature": {
+      "lifetime": {
+        "column_name": "temperature",
+        "noisy": 0.3,
+        "trend": 0.1,
+        "mean": 58,
+        "std_dev": 17,
+      },
+      "trip": {
         "trend": -0.8,
         "noisy": 1,
+      }
+    },
+    "air_pressure": {
+      "depedent_on": "temperature",
+      "min": 913,
+      "max": 1113,
+      "subtract": 15 
     },
     "lifetime": {
         "trend": 0.4,
