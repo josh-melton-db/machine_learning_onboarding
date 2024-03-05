@@ -38,7 +38,7 @@ assert(100 * skyjet3_defect_rate < 6)
 
 # COMMAND ----------
 
-assert(100 * defect_rate < 3.5)
+assert(100 * defect_rate < 3.5 and 100 * defect_rate > 0.5)
 
 # COMMAND ----------
 
