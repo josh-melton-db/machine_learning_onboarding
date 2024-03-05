@@ -36,14 +36,6 @@ def create_initial_df(spark, num_rows, num_devices, **kwargs):
         .drop('id')
     )
 
-def get_datetime_list(start_date, end_date, length=None):
-    if not length:
-        length = randint(10, 300)
-    time_diff = (end_date - start_date).total_seconds()
-    random_second = randint(0, int(time_diff))
-    rand_datetime = start_date + datetime.timedelta(seconds=random_second)
-    return pd.date_range(start=str(rand_datetime), periods=length, freq='1 min')
-
 def timestamp_sequence_lengths(total, minimum, maximum):
     nums = []
     while total > 0:
@@ -55,6 +47,14 @@ def timestamp_sequence_lengths(total, minimum, maximum):
         total -= n
     shuffle(nums)
     return nums
+
+def get_datetime_list(start_date, end_date, length=None, freq='1 min'):
+    if not length:
+        length = randint(10, 300)
+    time_diff = (end_date - start_date).total_seconds()
+    random_second = randint(0, int(time_diff))
+    rand_datetime = start_date + datetime.timedelta(seconds=random_second)
+    return pd.date_range(start=str(rand_datetime), periods=length, freq=freq)
 
 def create_add_timestamps_func(column_name, frequency, amplitude, minimum, maximum, start, end, **kwargs):
     def add_timestamps(pdf: pd.DataFrame) -> pd.DataFrame:
